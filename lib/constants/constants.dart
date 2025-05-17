@@ -39,6 +39,11 @@ const assetEmojiDir = './assets/images/emoji/';
 /// Bundled emoji.
 const assetEmojiInfoPath = './assets/images/emoji/emoji.json';
 
+/// Tiny placeholder image.
+///
+/// As part of workaround for the image data.
+const assetPlaceholderImagePath = './assets/images/placeholder.png';
+
 /// Changelog till publish.
 ///
 /// Add argument to make `compute` happy.
@@ -117,3 +122,6 @@ const htmlContentMaxWidth = 712.0;
 
 /// Prefix of all cookie.
 const cookiePrefix = 's_gkr8_682f';
+
+/// The maximum count of recent used custom colors in editor.
+const editorRecentUsedCustomColorsMaxCount = 8;

@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bbcode_editor/flutter_bbcode_editor.dart';
+import 'package:fpdart/fpdart.dart' as fp;
 import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/list.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/instance.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/providers/image_cache_provider/image_cache_provider.dart';
 import 'package:tsdm_client/shared/providers/image_cache_provider/models/models.dart';
 import 'package:tsdm_client/utils/logger.dart';
@@ -18,7 +21,7 @@ import 'package:tsdm_client/widgets/tips.dart';
 Future<BBCodeImageInfo?> showImagePicker(BuildContext context, {String? url, int? width, int? height}) async =>
     showDialog<BBCodeImageInfo>(
       context: context,
-      builder: (context) => _ImageDialog(url: url, width: width, height: height),
+      builder: (context) => RootPage(DialogPaths.imagePicker, _ImageDialog(url: url, width: width, height: height)),
     );
 
 /// Show a dialog to insert picture and description.
@@ -93,10 +96,13 @@ class _ImageDialogState extends State<_ImageDialog> with LoggerMixin, SingleTick
 
   Future<void> _fillImageSize(String url) async {
     try {
-      final imageData = await getIt.get<ImageCacheProvider>().getOrMakeCache(
+      final imageData = (await getIt.get<ImageCacheProvider>().getOrMakeCache(
         ImageCacheGeneralRequest(url),
         force: true,
-      );
+      )).getOrElse(() => Uint8List(0));
+      if (imageData.isEmpty) {
+        return;
+      }
       final uiImage = await decodeImageFromList(imageData);
       if (!mounted) {
         return;
@@ -198,6 +204,7 @@ class _ImageDialogState extends State<_ImageDialog> with LoggerMixin, SingleTick
         key: urlForm,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             IndexedStack(
               index: index,

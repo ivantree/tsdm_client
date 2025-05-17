@@ -665,7 +665,8 @@
         "title": "自定义",
         "colorValue": "颜色",
         "invalidColor": "无效的颜色",
-        "formatTip": "输入颜色的名字（例如darkorange、DarkOrange）或者hex形式的颜色数值（例如f0c、ff00cc、14d084）"
+        "formatTip": "输入颜色的名字（例如darkorange、DarkOrange）或者hex形式的颜色数值（例如f0c、ff00cc、14d084）",
+        "recentColor": "最近使用"
       }
     }
   },
@@ -741,6 +742,11 @@
     "experimentalInfo": "实验性bbcode编辑器",
     "experimentalInfoTitle": "实验性bbcode编辑器",
     "experimentalInfoDetail": "此bbcode编辑器支持所见即所得，可以方便地添加文本样式和其他bbcode组件。\n但处于实验阶段：已经经过测试，但可能有bug。",
+    "expandToolbar": "展开工具栏",
+    "collapsedToolbar": "收起工具栏",
+    "toolbar": "工具栏",
+    "additionalOptions": "附加选项",
+    "readPerm": "阅读权限",
     "emoji": {
       "title": "表情",
       "downloading": "正在下载表情（大约10MB内容），这可能需要一些时间。。。",
