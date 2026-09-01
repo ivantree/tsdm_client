@@ -118,7 +118,10 @@ class _HomepagePageState extends State<HomepagePage> {
             },
           ),
           BlocListener<HomepageBloc, HomepageState>(
-            listenWhen: (prev, curr) => prev.status == HomepageStatus.loading && curr.status == HomepageStatus.success,
+            listenWhen: (prev, curr) =>
+                prev.status == HomepageStatus.loading &&
+                curr.status == HomepageStatus.success &&
+                curr.loggedUserInfo != null,
             listener: (context, _) {
               // From loading state to success state, refresh notice.
               context.read<NotificationBloc>().add(NotificationUpdateAllRequested());

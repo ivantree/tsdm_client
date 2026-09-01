@@ -4,6 +4,9 @@ import 'package:tsdm_client/extensions/universal_html.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:universal_html/html.dart' as uh;
 
+int? _firstForumCount(Iterable<uh.Element?> nodes) =>
+    nodes.whereType<uh.Element>().map((e) => e.forumCount()).whereType<int>().firstOrNull;
+
 /// Build a list of [ForumGroup]s from the given [document].
 ///
 /// A forum group is a list of forum the grouped together, exists in the forum homepage and special pages with `gid` in
@@ -72,20 +75,16 @@ Forum _buildExpandedForum(uh.Element element) {
 
   final iconUrl = element.querySelector('td > a > img')?.dataOriginalOrSrcImgUrl();
 
-  final threadCount =
-      (element.querySelector('td:nth-child(3) > span:nth-child(1)') ??
-              // 旅行者 theme
-              element.querySelector('td:nth-child(2) > span:nth-child(1)'))
-          ?.firstEndDeepText()
-          ?.parseToInt();
-  final replyCount =
-      (element.querySelector('td:nth-child(3) > span:nth-child(2)') ??
-              // 旅行者 theme
-              element.querySelector('td:nth-child(2) > span:nth-child(2)'))
-          ?.firstEndDeepText()
-          ?.split(' ')
-          .lastOrNull
-          ?.parseToInt();
+  final threadCount = _firstForumCount([
+    element.querySelector('td:nth-child(3) > span:nth-child(1)'),
+    // 旅行者 theme
+    element.querySelector('td:nth-child(2) > span:nth-child(1)'),
+  ]);
+  final replyCount = _firstForumCount([
+    element.querySelector('td:nth-child(3) > span:nth-child(2)'),
+    // 旅行者 theme
+    element.querySelector('td:nth-child(2) > span:nth-child(2)'),
+  ]);
   final threadTodayCount =
       // Style 1: With avatar.
       (element.querySelector('td:nth-child(2) > h2 > em') ??
@@ -163,70 +162,18 @@ Forum _buildCollapsedForum(uh.Element element) {
 
   final iconUrl = element.querySelector('div.fl_icn_g > a > img')?.dataOriginalOrSrcImgUrl();
 
-  final threadCount =
-      // Style 1
-      element
-          .querySelector(
-            'div.tsdm_fl_inf > dl > dd > em:nth-child(1) > '
-            'span:nth-child(2)',
-          )
-          ?.firstEndDeepText()
-          ?.parseToInt() ??
-      // Style 2
-      //
-      // <em>主题: 47857</em>, <em>帖数: 169905</em>
-      //
-      element
-          .querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(1)')
-          ?.firstEndDeepText()
-          ?.split(' ')
-          .elementAtOrNull(1)
-          ?.parseToInt() ??
-      // Style 3: With welcome text and without avatar.
-      //
-      // <em> <font>主题</font> <font>12345</font> </em>
-      //
-      element
-          .querySelector(
-            'div.tsdm_fl_inf > dl > dd > em:nth-child(1) > '
-            'font:nth-child(2)',
-          )
-          ?.firstEndDeepText()
-          ?.parseToInt() ??
-      // Style 5
-      element.querySelector('dl > dd > em:nth-child(1)')?.firstEndDeepText()?.split(' ').lastOrNull?.parseToInt();
-  final replyCount =
-      // Style 1
-      element
-          .querySelector(
-            'div.tsdm_fl_inf > dl > dd > em:nth-child(2) > '
-            'span:nth-child(2)',
-          )
-          ?.firstEndDeepText()
-          ?.parseToInt() ??
-      // Style 2
-      //
-      // <em>主题: 47857</em>, <em>帖数: 169905</em>
-      //
-      element
-          .querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(2)')
-          ?.firstEndDeepText()
-          ?.split(' ')
-          .elementAtOrNull(1)
-          ?.parseToInt() ??
-      // Style 3: With welcome text and without avatar.
-      //
-      // <em> <font>主题</font> <font>12345</font> </em>
-      //
-      element
-          .querySelector(
-            'div.tsdm_fl_inf > dl > dd > em:nth-child(2) > '
-            'font:nth-child(2)',
-          )
-          ?.firstEndDeepText()
-          ?.parseToInt() ??
-      // Style 5
-      element.querySelector('dl > dd > em:nth-child(2)')?.firstEndDeepText()?.split(' ').lastOrNull?.parseToInt();
+  final threadCount = _firstForumCount([
+    element.querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(1) > span:nth-child(2)'),
+    element.querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(1) > font:nth-child(2)'),
+    element.querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(1)'),
+    element.querySelector('dl > dd > em:nth-child(1)'),
+  ]);
+  final replyCount = _firstForumCount([
+    element.querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(2) > span:nth-child(2)'),
+    element.querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(2) > font:nth-child(2)'),
+    element.querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(2)'),
+    element.querySelector('dl > dd > em:nth-child(2)'),
+  ]);
   final threadTodayCount =
       element
           .querySelector('div.tsdm_fl_inf > dl > dd > em:nth-child(3)')

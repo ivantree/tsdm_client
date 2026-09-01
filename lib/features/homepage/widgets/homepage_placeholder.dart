@@ -15,7 +15,7 @@ class HomepagePlaceholder extends StatelessWidget {
           child: Card(
             margin: EdgeInsets.zero,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: _kahrpbaPicHeight),
+              constraints: const BoxConstraints(maxHeight: _swiperPictureHeight),
               child: Container(),
             ),
           ),

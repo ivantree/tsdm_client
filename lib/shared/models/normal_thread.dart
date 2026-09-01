@@ -1,6 +1,25 @@
 part of 'models.dart';
 
 extension _ParseThreadState on uh.Element {
+  Set<ThreadStateModel> _parseThreadState() {
+    if (tagName == 'IMG') {
+      return _parseThreadStateFromImg();
+    }
+    if (tagName != 'I') {
+      return {};
+    }
+
+    final className = classes.join(' ');
+    return {
+      if (className.contains('fico-lock')) ThreadStateModel.closed,
+      if (className.contains('fico-poll')) ThreadStateModel.poll,
+      if (className.contains('fico-reward')) ThreadStateModel.rewarded,
+      if (className.contains('fico-pin')) ThreadStateModel.pinnedInSubreddit,
+      if (className.contains('fico-digest')) ThreadStateModel.digested,
+      if (className.contains('fico-image')) ThreadStateModel.pictureAttached,
+    };
+  }
+
   /// Parse the [ThreadStateModel] represented by the image node.
   ///
   /// Return an empty set if current node is not <img> node.
@@ -98,14 +117,12 @@ enum ThreadStateModel {
   static Set<ThreadStateModel> buildSetFromTr(uh.Element threadElement) {
     final stateSet = <ThreadStateModel>{};
 
-    final threadIconNode = threadElement.querySelector('td > a > img');
-    if (threadIconNode != null) {
-      stateSet.addAll(threadIconNode._parseThreadStateFromImg());
-    }
+    final threadIconNode = threadElement.querySelector('td > a > img') ?? threadElement.querySelector('td > a > i');
+    stateSet.addAll(threadIconNode?._parseThreadState() ?? {});
     // Parse thread state from images following title text.
     final stateList = threadElement
-        .querySelectorAll('th > img')
-        .map((e) => e._parseThreadStateFromImg())
+        .querySelectorAll('th > img, th > i')
+        .map((e) => e._parseThreadState())
         .toList()
         .flattened
         .toList();
@@ -220,18 +237,15 @@ class NormalThread with NormalThreadMappable {
   ///   name="tsdm_normalthread">
   static NormalThread? fromTBody(uh.Element threadElement) {
     final threadIconNode = threadElement.querySelector('tr > td > a > img');
-    final threadIconUrl = threadIconNode?.attributes['src']?.prependHost();
-    if (threadIconUrl == null) {
-      talker.error('failed to build thread: invalid thread icon url');
-      return null;
-    }
+    final threadIconUrl = threadIconNode?.attributes['src']?.prependHost() ?? '';
 
     // Allow not found.
     final threadTypeNode = threadElement.querySelector('tr > th > em > a:nth-child(1)');
     final threadTypeUrl = threadTypeNode?.attributes['href'];
     final threadTypeName = threadTypeNode?.firstEndDeepText();
 
-    final threadUrlNode = threadElement.querySelector('tr > th > span > a');
+    final threadUrlNode =
+        threadElement.querySelector('tr > th > a.xst') ?? threadElement.querySelector('tr > th > span > a');
     final threadUrl = threadUrlNode?.attributes['href'];
     final threadTitle = threadUrlNode?.firstEndDeepText()?.trim();
     final css = parseCssString(threadUrlNode?.attributes['style'] ?? '');
@@ -262,11 +276,7 @@ class NormalThread with NormalThreadMappable {
     final threadAuthorUrl = threadAuthorNode?.querySelector('cite > a')?.attributes['href'];
     final threadAuthorUid = threadAuthorUrl?.split('uid=').elementAtOrNull(1);
     final threadAuthorName = threadAuthorNode?.querySelector('cite > a')?.firstEndDeepText()?.trim();
-    final threadPublishDate = threadAuthorNode
-        ?.querySelector('em > span')
-        ?.firstEndDeepText()
-        ?.trim()
-        .parseToDateTimeUtc8();
+    final threadPublishDate = threadAuthorNode?.querySelector('em > span')?.dateTime();
 
     // Thread published in 24 hours get highlight on its publish time with
     // css class `xi1`.

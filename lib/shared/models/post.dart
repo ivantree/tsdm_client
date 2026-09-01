@@ -148,6 +148,7 @@ class Post with PostMappable {
   /// Build [Post] from [element] that has attribute id "post_$postID".
   static Post? fromPostNode(uh.Element element, int page) {
     final trRootNode = element.querySelector('table > tbody > tr');
+    final postDataNode = trRootNode?.querySelector('td:nth-child(2)');
     final postID = element.id.replaceFirst('post_', '');
     if (postID.isEmpty) {
       talker.error('failed to build post: empty post ID');
@@ -156,10 +157,14 @@ class Post with PostMappable {
     final avatarId = 'ts_avatar_$postID';
     // <td class="pls">
     final postInfoNode = trRootNode?.querySelector('td:nth-child(1) > div#$avatarId');
+    final x5AuthorNode = postDataNode
+        ?.querySelectorAll('div.authi > a[href*="mod=space"][href*="uid="]')
+        .firstWhereOrNull((node) => node.innerText.trim().isNotEmpty);
     // <td class="plc tsdm_ftc">
-    final postAuthorName = postInfoNode?.querySelector('div')?.firstEndDeepText();
-    final postAuthorUrl = postInfoNode?.querySelector('div.avatar > a')?.attributes['href'];
-    final postAuthorUid = postAuthorUrl?.split('uid=').elementAtOrNull(1);
+    final postAuthorName = postInfoNode?.querySelector('div')?.firstEndDeepText() ?? x5AuthorNode?.innerText.trim();
+    final postAuthorUrl =
+        postInfoNode?.querySelector('div.avatar > a')?.attributes['href'] ?? x5AuthorNode?.attributes['href'];
+    final postAuthorUid = postAuthorUrl?.split('uid=').elementAtOrNull(1)?.split('&').firstOrNull;
     final postAuthorAvatarNode = postInfoNode?.querySelector('div.avatar > a > img');
     final postAuthorAvatarUrl =
         postAuthorAvatarNode?.attributes['data-original'] ?? postAuthorAvatarNode?.attributes['src'];
@@ -175,7 +180,6 @@ class Post with PostMappable {
       return null;
     }
 
-    final postDataNode = trRootNode?.querySelector('td:nth-child(2)');
     final postPublishTimeNode = postDataNode?.querySelector('#authorposton$postID');
     // Recent post can grep [publishTime] in the the "title" attribute
     // in first child.
@@ -378,6 +382,8 @@ class Post with PostMappable {
     final threadDataRootNode =
         // Style 5
         element.querySelector('div.bm > div') ??
+        // X5 no longer wraps post nodes in the legacy container.
+        element.children.firstWhereOrNull((child) => child.id.startsWith('post_')) ??
         // Some normal styles.
         element.childAtOrNull(2);
     var currentElement = threadDataRootNode;

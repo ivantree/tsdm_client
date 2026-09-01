@@ -66,6 +66,7 @@ class PinSection extends StatelessWidget with LoggerMixin {
     final ret = <Widget>[];
 
     final count = pinnedThreadGroup.length;
+    final maxThreadCount = pinnedThreadGroup.map((e) => e.threadList.length).fold(0, math.max);
 
     for (var i = 0; i < count; i++) {
       final sectionName = pinnedThreadGroup[i].title;
@@ -97,7 +98,7 @@ class PinSection extends StatelessWidget with LoggerMixin {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 670,
-        mainAxisExtent: 700 + math.max(25 * ((textScaleFactor - 1) / 0.1), 0),
+        mainAxisExtent: math.max(700, 84 + maxThreadCount * 72 + math.max(25 * ((textScaleFactor - 1) / 0.1), 0)),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
       ),

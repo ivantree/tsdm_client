@@ -12,12 +12,19 @@ import 'package:universal_html/parsing.dart';
 final class ForumHomeRepository with LoggerMixin {
   /// Cached document of forum homepage.
   uh.Document? _document;
+  uh.Document? _guideDocument;
 
   /// Check has cached html [_document] or not.
   bool hasCache() => _document != null;
 
   /// Get the cached [_document].
   uh.Document? getCache() => _document;
+
+  /// Check whether the latest-thread guide page is cached.
+  bool hasGuideCache() => _guideDocument != null;
+
+  /// Get the cached latest-thread guide page.
+  uh.Document? getGuideCache() => _guideDocument;
 
   /// Fetch the home page of app from server.
   AsyncEither<uh.Document> fetchHomePage({bool force = false}) => AsyncEither(() async {
@@ -50,6 +57,23 @@ final class ForumHomeRepository with LoggerMixin {
     }
     _document = e.unwrap();
     return right(_document!);
+  });
+
+  /// Fetch the standard latest-thread guide page.
+  AsyncEither<uh.Document> fetchGuidePage({bool force = false}) => AsyncEither(() async {
+    if (!force && _guideDocument != null) {
+      return right(_guideDocument!);
+    }
+    final response = await getIt
+        .get<NetClientProvider>()
+        .get('$baseUrl/forum.php?mod=guide&view=newthread&mobile=no')
+        .mapHttp((v) => parseHtmlDocument(v.data as String))
+        .run();
+    if (response.isLeft()) {
+      return left(response.unwrapErr());
+    }
+    _guideDocument = response.unwrap();
+    return right(_guideDocument!);
   });
 
   /// Fetch the [homePage] of forum.

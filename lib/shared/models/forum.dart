@@ -103,16 +103,12 @@ final class Forum with ForumMappable {
         (element.querySelector('td:nth-child(3) > span:nth-child(1)') ??
                 // 旅行者 theme
                 element.querySelector('td:nth-child(2) > span:nth-child(1)'))
-            ?.firstEndDeepText()
-            ?.parseToInt();
+            ?.forumCount();
     final replyCount =
         (element.querySelector('td:nth-child(3) > span:nth-child(2)') ??
                 // 旅行者 theme
                 element.querySelector('td:nth-child(2) > span:nth-child(2)'))
-            ?.firstEndDeepText()
-            ?.split(' ')
-            .lastOrNull
-            ?.parseToInt();
+            ?.forumCount();
 
     if (threadCount == null || replyCount == null) {
       talker.error(

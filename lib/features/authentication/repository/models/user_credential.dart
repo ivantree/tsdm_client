@@ -42,12 +42,8 @@ class UserCredential with UserCredentialMappable {
     required this.loginField,
     required this.loginFieldValue,
     required this.password,
-    // required this.formHash,
-    required this.tsdmVerify,
-    // this.referer = homePage,
-    // this.cookieTime = defaultCookieTime,
+    required this.captcha,
     this.securityQuestion,
-    // this.loginSubmit = true,
   });
 
   /// Which name field stands for.
@@ -59,48 +55,30 @@ class UserCredential with UserCredentialMappable {
   /// Password.
   final String password;
 
-  // /// Form hash.
-  // final String formHash;
-
-  /// Verify code.
-  final String tsdmVerify;
-
-  // /// Referer in request.
-  // ///
-  // /// Default is [homePage].
-  // final String referer;
-
-  // /// Cookie persistent time.
-  // ///
-  // /// Default is [defaultCookieTime].
-  // final int cookieTime;
-
-  // /// Login submit in web request.
-  // ///
-  // /// Default is true.
-  // final bool loginSubmit;
+  /// Captcha answer when required by the current challenge.
+  final String captcha;
 
   /// Security question in web request.
   ///
   /// Can be null.
   final SecurityQuestion? securityQuestion;
 
-  /// Method to convert to json.
-  Map<String, String> toJson() {
-    final m = {
-      'fastloginfield': loginField.toString(),
+  /// Build fields submitted to the current Discuz login form.
+  Map<String, String> toFormData(LoginHash loginHash) {
+    final m = <String, String>{
+      ...loginHash.hiddenFields,
+      'loginfield': loginField.toString(),
       'username': loginFieldValue,
       'password': password,
-      // 'formhash': formHash,
-      'tsdm_verify': tsdmVerify,
-      // 'referer': referer,
-      // 'cookietime': cookieTime,
-      // 'loginsubmit': loginSubmit,
+      'questionid': securityQuestion?.questionId ?? '0',
+      'answer': securityQuestion?.answer ?? '',
+      'cookietime': '2592000',
+      'loginsubmit': 'true',
     };
 
-    if (securityQuestion != null) {
-      m['questionid'] = securityQuestion!.questionId;
-      m['answer'] = securityQuestion!.answer;
+    if (loginHash.requiresCaptcha) {
+      m['seccodehash'] = loginHash.captchaHash!;
+      m['seccodeverify'] = captcha;
     }
 
     return m;

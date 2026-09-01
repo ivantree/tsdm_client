@@ -73,6 +73,24 @@ extension AccessExtension on Element {
 
 /// Grep extension for [Element] type.
 extension GrepExtension on Element {
+  /// Parse a forum count, preferring the exact value in `title`.
+  int? forumCount() {
+    final exactValue = attributes['title']?.replaceAll(',', '').trim().parseToInt();
+    if (exactValue != null) {
+      return exactValue;
+    }
+
+    final displayedValue = firstEndDeepText()?.replaceAll(',', '').trim();
+    final countText = RegExp(r'(\d+(?:\.\d+)?万?)$').firstMatch(displayedValue ?? '')?.group(1);
+    final plainValue = countText?.parseToInt();
+    if (plainValue != null) {
+      return plainValue;
+    }
+
+    final abbreviatedValue = RegExp(r'^(\d+(?:\.\d+)?)万$').firstMatch(countText ?? '')?.group(1);
+    return abbreviatedValue == null ? null : (double.parse(abbreviatedValue) * 10000).round();
+  }
+
   /// Search the first value of attr "href" in pre-order use [Element] element
   /// as root node.
   /// * Search in first child and next siblings when next is true.

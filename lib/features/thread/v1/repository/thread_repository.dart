@@ -26,6 +26,11 @@ class ThreadRepository {
       '$baseUrl/forum.php?mod=misc&action=viewthreadmod&tid=$tid'
       '&infloat=yes&handlekey=viewthreadmod&inajax=1&ajaxtarget=fwin_content_viewthreadmod';
 
+  static bool _shouldRetryWithAlternateHost(uh.Document document, String html) =>
+      document.querySelector('div#postlist') == null && html.contains('/cdn-cgi/challenge-platform/');
+
+  static String _buildAlternateHostUrl(String url) => Uri.parse(url).replace(host: baseHostAlt).toString();
+
   /// Fetch the thread page with [tid] on page [pageNumber].
   ///
   /// # Exception
@@ -75,7 +80,8 @@ class ThreadRepository {
       _threadUrl = '$baseUrl/forum.php?mod=redirect&goto=findpost&pid=$pid';
     }
 
-    final respEither = await getIt.get<NetClientProvider>().get(_threadUrl!).run();
+    final netClient = getIt.get<NetClientProvider>();
+    final respEither = await netClient.get(_threadUrl!).run();
     if (respEither.isLeft()) {
       return left(respEither.unwrapErr());
     }
@@ -85,7 +91,34 @@ class ThreadRepository {
       return left(HttpRequestFailedException(resp.statusCode));
     }
 
-    final document = parseHtmlDocument(resp.data as String);
+    final html = resp.data as String;
+    final document = parseHtmlDocument(html);
+    if (_shouldRetryWithAlternateHost(document, html)) {
+      var canRetryFallback = true;
+      while (true) {
+        final fallbackEither = await netClient.get(_buildAlternateHostUrl(_threadUrl!)).run();
+        if (fallbackEither.isLeft()) {
+          final fallbackError = fallbackEither.unwrapErr();
+          if (canRetryFallback && fallbackError is HttpHandshakeFailedException) {
+            canRetryFallback = false;
+            continue;
+          }
+          return left(fallbackError);
+        }
+
+        final fallbackResp = fallbackEither.unwrap();
+        if (fallbackResp.statusCode != HttpStatus.ok) {
+          return left(HttpRequestFailedException(fallbackResp.statusCode));
+        }
+        final fallbackHtml = fallbackResp.data as String;
+        final fallbackDocument = parseHtmlDocument(fallbackHtml);
+        if (canRetryFallback && _shouldRetryWithAlternateHost(fallbackDocument, fallbackHtml)) {
+          canRetryFallback = false;
+          continue;
+        }
+        return right(fallbackDocument);
+      }
+    }
     return right(document);
   });
 

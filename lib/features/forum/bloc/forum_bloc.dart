@@ -87,7 +87,12 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
     final title = document.querySelector('div#ct h1.xs2 > a')?.innerText;
     List<StickThread>? stickThreadList;
     List<Forum>? subredditList;
-    final normalThreadList = _buildThreadList<NormalThread>(document, 'tsdm_normalthread', NormalThread.fromTBody);
+    final normalThreadList = _buildThreadList<NormalThread>(
+      document,
+      'tsdm_normalthread',
+      'normalthread_',
+      NormalThread.fromTBody,
+    );
 
     // Always parse the latest result of pinned contents.
     // As we allow direct access from url and thread page header, where has no complete pinned contents recorded
@@ -95,7 +100,12 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
     // the complete result when accessing without filters.
     //
     // Always parse it and use it if necessary.
-    stickThreadList = _buildThreadList<StickThread>(document, 'tsdm_stickthread', StickThread.fromTBody);
+    stickThreadList = _buildThreadList<StickThread>(
+      document,
+      'tsdm_stickthread',
+      'stickthread_',
+      StickThread.fromTBody,
+    );
     subredditList = _buildForumList(document, state.fid);
 
     var needLogin = false;
@@ -202,10 +212,11 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
   List<T> _buildThreadList<T extends NormalThread>(
     uh.Document document,
     String threadClass,
+    String idPrefix,
     T? Function(uh.Element element) threadBuilder,
   ) {
     final threadList = document
-        .querySelectorAll('tbody.$threadClass')
+        .querySelectorAll('tbody.$threadClass, tbody[id^="$idPrefix"]')
         .map((e) => threadBuilder(e))
         .whereType<T>()
         .toList();

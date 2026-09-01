@@ -145,7 +145,7 @@ class _PostListState extends State<PostList> with LoggerMixin {
 
   Widget _buildPostList() {
     if (widget.postList.isEmpty) {
-      return sizedBoxEmpty;
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
     return SuperSliverList.separated(
