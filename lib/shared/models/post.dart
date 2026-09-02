@@ -161,13 +161,13 @@ class Post with PostMappable {
         ?.querySelectorAll('div.authi > a[href*="mod=space"][href*="uid="]')
         .firstWhereOrNull((node) => node.innerText.trim().isNotEmpty);
     // <td class="plc tsdm_ftc">
-    final postAuthorName = postInfoNode?.querySelector('div')?.firstEndDeepText() ?? x5AuthorNode?.innerText.trim();
+    final legacyAuthorName = postInfoNode?.querySelector('div')?.firstEndDeepText()?.trim();
+    final postAuthorName = legacyAuthorName?.isNotEmpty ?? false ? legacyAuthorName : x5AuthorNode?.innerText.trim();
     final postAuthorUrl =
         postInfoNode?.querySelector('div.avatar > a')?.attributes['href'] ?? x5AuthorNode?.attributes['href'];
     final postAuthorUid = postAuthorUrl?.split('uid=').elementAtOrNull(1)?.split('&').firstOrNull;
     final postAuthorAvatarNode = postInfoNode?.querySelector('div.avatar > a > img');
-    final postAuthorAvatarUrl =
-        postAuthorAvatarNode?.attributes['data-original'] ?? postAuthorAvatarNode?.attributes['src'];
+    final postAuthorAvatarUrl = postAuthorAvatarNode?.imageUrl();
     final postAuthor = User(
       name: postAuthorName ?? '',
       uid: postAuthorUid,
@@ -212,7 +212,9 @@ class Post with PostMappable {
     //
     // Now we only search for the <div class="pcb"> node.
     final postData =
-        postDataNode?.querySelector('div.pcb')?.innerHtml ?? postDataNode?.querySelector('div.pcbs')?.innerHtml;
+        postDataNode?.querySelector('[id^="postmessage_"]')?.innerHtml ??
+        postDataNode?.querySelector('div.pcb')?.innerHtml ??
+        postDataNode?.querySelector('div.pcbs')?.innerHtml;
 
     // Locked block in this post.
     //

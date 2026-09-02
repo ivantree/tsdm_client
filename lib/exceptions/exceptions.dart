@@ -294,6 +294,13 @@ final class ProfileNeedLoginException extends AppException with ProfileNeedLogin
   ProfileNeedLoginException();
 }
 
+/// Need to login when trying to fetch the current user's threads.
+@MappableClass()
+final class MyThreadNeedLoginException extends AppException with MyThreadNeedLoginExceptionMappable {
+  /// Constructor.
+  MyThreadNeedLoginException();
+}
+
 /// Status field not found in profile response.
 @MappableClass()
 final class ProfileStatusNotFoundException extends AppException with ProfileStatusNotFoundExceptionMappable {

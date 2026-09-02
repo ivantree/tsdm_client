@@ -10,9 +10,11 @@ import 'package:universal_html/parsing.dart';
 
 /// A repository that fetches the homepage html data from website.
 final class ForumHomeRepository with LoggerMixin {
+  static const _guideViews = ['newthread', 'new', 'hot', 'digest'];
+
   /// Cached document of forum homepage.
   uh.Document? _document;
-  uh.Document? _guideDocument;
+  List<uh.Document>? _guideDocuments;
 
   /// Check has cached html [_document] or not.
   bool hasCache() => _document != null;
@@ -20,11 +22,11 @@ final class ForumHomeRepository with LoggerMixin {
   /// Get the cached [_document].
   uh.Document? getCache() => _document;
 
-  /// Check whether the latest-thread guide page is cached.
-  bool hasGuideCache() => _guideDocument != null;
+  /// Check whether the guide pages are cached.
+  bool hasGuideCache() => _guideDocuments?.isNotEmpty ?? false;
 
-  /// Get the cached latest-thread guide page.
-  uh.Document? getGuideCache() => _guideDocument;
+  /// Get the cached guide pages.
+  List<uh.Document>? getGuideCache() => _guideDocuments;
 
   /// Fetch the home page of app from server.
   AsyncEither<uh.Document> fetchHomePage({bool force = false}) => AsyncEither(() async {
@@ -59,21 +61,33 @@ final class ForumHomeRepository with LoggerMixin {
     return right(_document!);
   });
 
-  /// Fetch the standard latest-thread guide page.
-  AsyncEither<uh.Document> fetchGuidePage({bool force = false}) => AsyncEither(() async {
-    if (!force && _guideDocument != null) {
-      return right(_guideDocument!);
+  /// Fetch the standard guide pages.
+  AsyncEither<List<uh.Document>> fetchGuidePages({bool force = false}) => AsyncEither(() async {
+    if (!force && (_guideDocuments?.isNotEmpty ?? false)) {
+      return right(_guideDocuments!);
     }
-    final response = await getIt
-        .get<NetClientProvider>()
-        .get('$baseUrl/forum.php?mod=guide&view=newthread&mobile=no')
-        .mapHttp((v) => parseHtmlDocument(v.data as String))
-        .run();
-    if (response.isLeft()) {
-      return left(response.unwrapErr());
+
+    final documents = <uh.Document>[];
+    AppException? firstError;
+    for (final view in _guideViews) {
+      final response = await _fetchDocument(
+        '$baseUrl/forum.php',
+        queryParameters: {'mod': 'guide', 'view': view},
+      ).run();
+      if (response.isLeft()) {
+        final error = response.unwrapErr();
+        firstError ??= error;
+        warning('failed to fetch $view guide page: $error');
+        continue;
+      }
+      documents.add(response.unwrap());
     }
-    _guideDocument = response.unwrap();
-    return right(_guideDocument!);
+    if (documents.isEmpty) {
+      return left(firstError ?? HttpRequestFailedException(null));
+    }
+
+    _guideDocuments = documents;
+    return right(_guideDocuments!);
   });
 
   /// Fetch the [homePage] of forum.
@@ -81,6 +95,22 @@ final class ForumHomeRepository with LoggerMixin {
   /// # Exception
   ///
   /// * [HttpHandshakeFailedException] if GET request failed.
-  AsyncEither<uh.Document> _fetchForumHome() =>
-      getIt.get<NetClientProvider>().get(homePage).mapHttp((v) => parseHtmlDocument(v.data as String));
+  AsyncEither<uh.Document> _fetchForumHome() => _fetchDocument(homePage);
+
+  AsyncEither<uh.Document> _fetchDocument(String url, {Map<String, dynamic>? queryParameters}) => AsyncEither(() async {
+    final netClient = getIt.get<NetClientProvider>();
+    AppException? lastError;
+    for (final host in [baseHost, baseHostAlt]) {
+      final requestUrl = Uri.parse(url).replace(host: host).toString();
+      final result = await netClient
+          .get(requestUrl, queryParameters: queryParameters)
+          .mapHttp((response) => parseHtmlDocument(response.data as String))
+          .run();
+      if (result.isRight()) {
+        return right(result.unwrap());
+      }
+      lastError = result.unwrapErr();
+    }
+    return left(lastError ?? HttpRequestFailedException(null));
+  });
 }

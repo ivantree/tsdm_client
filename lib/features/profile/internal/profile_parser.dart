@@ -9,5 +9,7 @@ uh.Element? findProfileRoot(uh.Document document) {
 /// Finds the profile avatar URL in legacy and Discuz X5 templates.
 String? findProfileAvatarUrl(uh.Document document, uh.Element profileRoot) {
   return document.querySelector('div#wp.wp div#ct.ct2 div.sd div.hm > p > a > img')?.imageUrl() ??
-      profileRoot.querySelector('div.avt img')?.imageUrl();
+      profileRoot.querySelector('div.avt img')?.imageUrl() ??
+      document.querySelector('div.icn.avt img')?.imageUrl() ??
+      document.querySelector('div.avt img')?.imageUrl();
 }

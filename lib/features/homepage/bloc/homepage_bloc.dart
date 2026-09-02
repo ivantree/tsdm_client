@@ -6,11 +6,11 @@ import 'package:dart_mappable/dart_mappable.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/fp.dart';
-import 'package:tsdm_client/extensions/universal_html.dart';
 import 'package:tsdm_client/features/authentication/repository/authentication_repository.dart';
 import 'package:tsdm_client/features/authentication/repository/models/models.dart';
 import 'package:tsdm_client/features/homepage/internal/homepage_parser.dart';
 import 'package:tsdm_client/features/homepage/models/models.dart';
+import 'package:tsdm_client/features/profile/internal/profile_parser.dart';
 import 'package:tsdm_client/features/profile/repository/profile_repository.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/shared/repositories/forum_home_repository/forum_home_repository.dart';
@@ -25,7 +25,8 @@ part 'homepage_state.dart';
 extension ExtractProfileAvatar on uh.Document {
   /// Extract the user avatar url.
   String? extractAvatar() {
-    return querySelector('div#wp.wp div#ct.ct2 div.sd div.hm > p > a > img')?.imageUrl();
+    final profileRoot = findProfileRoot(this);
+    return profileRoot == null ? null : findProfileAvatarUrl(this, profileRoot);
   }
 }
 
@@ -97,21 +98,23 @@ class HomepageBloc extends Bloc<HomepageEvent, HomepageState> with LoggerMixin {
     }
 
     emit(const HomepageState(status: HomepageStatus.loading));
-    final homeFuture = _forumHomeRepository.fetchHomePage(force: force).run();
-    final guideFuture = _forumHomeRepository.fetchGuidePage(force: force).run();
-    final profileFuture = _authenticationRepository.currentUser == null
-        ? Future<SyncEither<uh.Document>?>.value()
-        : _profileRepository.fetchProfile(force: force).run();
-    final homeResult = await homeFuture;
-    final guideResult = await guideFuture;
-    final profileResult = await profileFuture;
-
-    if (homeResult.isLeft() || guideResult.isLeft()) {
+    final homeResult = await _forumHomeRepository.fetchHomePage(force: force).run();
+    if (homeResult.isLeft()) {
       homeResult.match(handle, (_) {});
+      emit(state.copyWith(status: HomepageStatus.failure));
+      return;
+    }
+
+    final guideResult = await _forumHomeRepository.fetchGuidePages(force: force).run();
+    if (guideResult.isLeft()) {
       guideResult.match(handle, (_) {});
       emit(state.copyWith(status: HomepageStatus.failure));
       return;
     }
+
+    final profileResult = _authenticationRepository.currentUser == null
+        ? null
+        : await _profileRepository.fetchProfile(force: force).run();
 
     final homeDocument = homeResult.unwrap();
     final authResult = await _authenticationRepository.loginWithDocument(homeDocument).run();

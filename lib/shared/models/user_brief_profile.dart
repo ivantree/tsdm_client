@@ -168,10 +168,15 @@ final class UserBriefProfile with UserBriefProfileMappable {
       talker.error('failed to build UserBriefProfile: avatar node not found');
       return null;
     }
-    final username = avatarNode.querySelector('div:nth-child(1)')?.innerText;
+    final legacyUsername = avatarNode.querySelector('div:nth-child(1)')?.innerText.trim();
+    final username = legacyUsername?.isNotEmpty ?? false
+        ? legacyUsername
+        : element.querySelector('div#userinfo$postId strong > a')?.innerText.trim();
     // Allow empty value.
     final nickname = avatarNode.querySelector('div:nth-child(2)')?.innerText;
-    final avatarUrl = avatarNode.querySelector('div.avatar > a > img')?.imageUrl();
+    final avatarUrl =
+        avatarNode.querySelector('div.avatar > a > img')?.imageUrl() ??
+        element.querySelector('img.user_avatar')?.imageUrl();
     if (username == null || nickname == null || avatarUrl == null) {
       talker.error(
         'warning when build UserBriefProfile: username or nickname or'

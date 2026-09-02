@@ -236,12 +236,16 @@ extension GrepExtension on Element {
   ///
   /// There is a priority difference between different node attributes.
   ///
-  /// zoomfile > data-original > src > file.
+  /// zoomfile > data-original > data-src > src > file.
   ///
   /// Return null if no available image url found.
   String? imageUrl() {
     final str =
-        attributes['zoomfile']?.prependHost() ?? attributes['data-original'] ?? attributes['src'] ?? attributes['file'];
+        attributes['zoomfile']?.prependHost() ??
+        attributes['data-original'] ??
+        attributes['data-src'] ??
+        attributes['src'] ??
+        attributes['file'];
 
     if (str == null) {
       return null;

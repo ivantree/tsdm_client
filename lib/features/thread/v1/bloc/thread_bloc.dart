@@ -214,9 +214,11 @@ class ThreadBloc extends Bloc<ThreadEvent, ThreadState> with LoggerMixin {
     final threadClosed = document.querySelector('form#fastpostform') == null;
     final threadDataNode = document.querySelector('div#postlist');
     final postList = Post.buildListFromThreadDataNode(threadDataNode, document.currentPage() ?? 1);
-    // Title node ALWAYS has an `a` node with id `thread_subject`.
-    // It's invisible in most styles and visible in 爱丽丝 style.
-    final title = document.querySelector('a#thread_subject')?.text?.trim();
+    // X5 pages may reuse `thread_subject` for an unrelated footer link.
+    final title =
+        (document.querySelector('div#postlist h1.ts #thread_subject') ?? document.querySelector('#thread_subject'))
+            ?.text
+            ?.trim();
 
     final allLinksInBreadCrumb = document.querySelectorAll('div#pt a');
     final forumName = switch (allLinksInBreadCrumb.length < 2) {

@@ -33,10 +33,10 @@ PinnedThread? _parseGuideThread(uh.Element row) {
   return PinnedThread(threadUrl: threadUrl, threadTitle: threadTitle, authorUrl: authorUrl, authorName: authorName);
 }
 
-/// Parse the standard forum homepage and latest-thread guide page.
+/// Parse the standard forum homepage and guide pages.
 HomepageData parseHomepageDocuments(
   uh.Document homeDocument,
-  uh.Document guideDocument, {
+  Iterable<uh.Document> guideDocuments, {
   String? username,
   String? avatarUrl,
 }) {
@@ -64,19 +64,27 @@ HomepageData parseHomepageDocuments(
     );
   }
 
-  final guideTitle =
-      guideDocument.querySelector('div.bm_h h1.xs2')?.text?.trim() ??
-      guideDocument.querySelector('h1.xs2')?.text?.trim() ??
-      '最新发表';
-  final threads = guideDocument
-      .querySelectorAll('tbody[id^="normalthread_"], tbody[id^="stickthread_"]')
-      .map(_parseGuideThread)
-      .whereType<PinnedThread>()
+  final pinnedThreadGroups = guideDocuments
+      .map((guideDocument) {
+        final guideTitle =
+            guideDocument.querySelector('div.bm_h h1.xs2')?.text?.trim() ??
+            guideDocument.querySelector('h1.xs2')?.text?.trim() ??
+            guideDocument.querySelector('ul#thread_types li.a a')?.text?.trim() ??
+            'Guide';
+        final threads = guideDocument
+            .querySelectorAll('tbody[id^="normalthread_"], tbody[id^="stickthread_"]')
+            .map(_parseGuideThread)
+            .whereType<PinnedThread>()
+            .take(10)
+            .toList();
+        return PinnedThreadGroup(title: guideTitle, threadList: threads);
+      })
+      .where((group) => group.threadList.isNotEmpty)
       .toList();
 
   return HomepageData(
     forumStatus: forumStatus,
     loggedUserInfo: loggedUserInfo,
-    pinnedThreadGroups: [PinnedThreadGroup(title: guideTitle, threadList: threads)],
+    pinnedThreadGroups: pinnedThreadGroups,
   );
 }
