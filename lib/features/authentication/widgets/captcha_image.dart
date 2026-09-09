@@ -1,14 +1,11 @@
-import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/fp.dart';
+import 'package:tsdm_client/features/authentication/repository/authentication_repository.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
-import 'package:tsdm_client/instance.dart';
-import 'package:tsdm_client/shared/providers/net_client_provider/net_client_provider.dart';
-import 'package:tsdm_client/shared/providers/providers.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/widgets/fallback_picture.dart';
 import 'package:tsdm_client/widgets/indicator.dart';
@@ -24,70 +21,56 @@ const double _indicatorBoxWidth = (_renderHeight / _captchaImageHeight) * _captc
 /// The captcha image used in login form.
 class CaptchaImage extends StatefulWidget {
   /// Constructor.
-  const CaptchaImage(this.controller, {super.key});
+  const CaptchaImage({required this.imageUrl, required this.onRefresh, super.key});
 
-  static final Uri _fakeFormVerifyUri = Uri.https('tsdm39.com', '/plugin.php', {'id': 'oracle:verify'});
+  /// Captcha image source from the current Discuz challenge.
+  final String imageUrl;
 
-  /// Injected controller.
-  final CaptchaImageController controller;
+  /// Request a fresh complete login challenge.
+  final VoidCallback onRefresh;
 
   @override
-  State<CaptchaImage> createState() => _VerityImageState();
+  State<CaptchaImage> createState() => _CaptchaImageState();
 }
 
-class _VerityImageState extends State<CaptchaImage> with LoggerMixin {
-  /// Debounce refreshing.
-  bool refreshDebounce = false;
-
+class _CaptchaImageState extends State<CaptchaImage> with LoggerMixin {
   /// Need this variable to mark whether the future [f] is completed or not.
   /// Because when refreshing state triggered by user interaction, it's weired
   /// that the [FutureBuilder] below has the previous data and does not show
   /// [CircularProgressIndicator] as planned.
   bool futureComplete = false;
-  Future<SyncEither<Response<dynamic>>>? f;
+  Future<SyncEither<List<int>>>? f;
 
-  Future<void> reload() async {
-    if (refreshDebounce) {
-      return;
-    }
+  void reload() {
     debug('fetching login captcha');
-    f = getIt
-        .get<NetClientProvider>(instanceName: ServiceKeys.noCookie)
-        .getImageFromUri(CaptchaImage._fakeFormVerifyUri)
-        .run()
-        .whenComplete(() {
-          futureComplete = true;
-        });
+    f = context.read<AuthenticationRepository>().fetchCaptchaImage(widget.imageUrl).run().whenComplete(() {
+      futureComplete = true;
+    });
 
     setState(() {
-      refreshDebounce = true;
       futureComplete = false;
     });
     debug('refresh login captcha');
-    await Future.delayed(const Duration(milliseconds: 4000), () {
-      refreshDebounce = false;
-    });
   }
 
   @override
   void initState() {
     super.initState();
-    widget.controller._bind(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await reload();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => reload());
   }
 
   @override
-  void dispose() {
-    widget.controller._unbind();
-    super.dispose();
+  void didUpdateWidget(CaptchaImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      reload();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () async => reload(),
+      onTap: widget.onRefresh,
       child: FutureBuilder(
         future: f,
         builder: (context, snapshot) {
@@ -105,7 +88,7 @@ class _VerityImageState extends State<CaptchaImage> with LoggerMixin {
               return const FallbackPicture();
             }
 
-            final bytes = Uint8List.fromList(snapshot.data!.unwrap().data as List<int>);
+            final bytes = Uint8List.fromList(snapshot.data!.unwrap());
             debug('fetch login captcha finished, ${f.hashCode}');
             // 130 x 60 -> 110.9 -> 52
             return Image.memory(bytes, height: _renderHeight);
@@ -114,31 +97,5 @@ class _VerityImageState extends State<CaptchaImage> with LoggerMixin {
         },
       ),
     );
-  }
-}
-
-/// Controller of [CaptchaImage].
-final class CaptchaImageController {
-  /// Shared state, not own it.
-  _VerityImageState? _state;
-
-  void _bind(_VerityImageState s) {
-    _state = s;
-    reload();
-  }
-
-  void _unbind() {
-    _state = null;
-  }
-
-  /// Reload captcha image.
-  void reload() {
-    // FIXME: Make is sync.
-    unawaited(_state?.reload());
-  }
-
-  /// Release resource.
-  void dispose() {
-    _state = null;
   }
 }

@@ -14,6 +14,8 @@ import 'package:universal_html/parsing.dart';
 
 /// Repository of notification.
 final class NotificationRepository with LoggerMixin {
+  static const _emptyPersonalMessageText = '当前没有相应的短消息';
+
   /// Provide a stream of [NotificationInfoState] those are fetched from server.
   ///
   /// Carries fetch result and fetched info if any.
@@ -82,19 +84,56 @@ final class NotificationRepository with LoggerMixin {
   ///
   /// [timestamp] is the last time call this api (in seconds).
   /// [uid] is the user id of whom to do the fetch action.
-  AsyncVoidEither fetchNotificationV2({required int uid, int? timestamp}) {
+  AsyncVoidEither fetchNotificationV2({required int uid, int? timestamp}) => AsyncVoidEither(() async {
     _controller.add(const NotificationInfoStateLoading());
-    return getIt
-        .get<NetClientProvider>()
-        .get(_buildNotificationV2Url(timestamp: timestamp))
-        .mapHttp(
-          (v) => _controller.add(NotificationInfoStateSuccess(uid, NotificationV2Mapper.fromJson(v.data as String))),
-        )
-        .mapLeft((e) {
-          _controller.add(const NotificationInfoStateFailure());
-          return e;
-        });
-  }
+    final netClient = getIt.get<NetClientProvider>();
+    final apiResult = await netClient.get(_buildNotificationV2Url(timestamp: timestamp)).run();
+    if (apiResult case Right(:final value) when value.statusCode == HttpStatus.ok) {
+      try {
+        final info = switch (value.data) {
+          final String data => NotificationV2Mapper.fromJson(data),
+          final Map<String, dynamic> data => NotificationV2Mapper.fromMap(data),
+          _ => throw const FormatException('unexpected notification response'),
+        };
+        _controller.add(NotificationInfoStateSuccess(uid, info));
+        return rightVoid();
+      } on FormatException {
+        warning('notification plugin returned a non-JSON response; falling back to the standard message page');
+      }
+    }
+
+    final pageResult = await netClient.get(personalMessageUrl).run();
+    final AppException? error;
+    switch (pageResult) {
+      case Left(:final value):
+        error = value;
+      case Right(:final value) when value.statusCode != HttpStatus.ok:
+        error = HttpRequestFailedException(value.statusCode);
+      case Right(:final value):
+        final document = parseHtmlDocument(value.data as String);
+        final isEmpty = document
+            .querySelectorAll('div.emp')
+            .any((node) => node.innerText.trim() == _emptyPersonalMessageText);
+        if (isEmpty) {
+          _controller.add(
+            NotificationInfoStateSuccess(
+              uid,
+              const NotificationV2(
+                status: 0,
+                noticeList: [],
+                personalMessageList: [],
+                broadcastMessageList: [],
+              ),
+            ),
+          );
+          return rightVoid();
+        }
+        error = HttpRequestFailedException(value.statusCode);
+    }
+
+    _controller.add(const NotificationInfoStateFailure());
+    return left(error);
+  });
 
   /// Dispose the repo.
   Future<void> dispose() async {

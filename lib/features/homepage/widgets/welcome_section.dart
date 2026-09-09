@@ -1,7 +1,7 @@
 part of 'widgets.dart';
 
-const double _kahrpbaPicWidth = 300;
-const double _kahrpbaPicHeight = 218;
+const double _swiperPictureWidth = 300;
+const double _swiperPictureHeight = 218;
 
 /// A section of homepage, contains swiper and user info.
 class WelcomeSection extends StatefulWidget {
@@ -33,18 +33,18 @@ class _WelcomeSectionState extends State<WelcomeSection> with LoggerMixin {
   Timer? _swiperTimer;
   bool _reverseSwiper = false;
 
-  Widget _buildKahrpbaSwiper(BuildContext context, List<SwiperUrl> swiperUrlList) {
+  Widget _buildSwiper(BuildContext context, List<SwiperUrl> swiperUrlList) {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: _kahrpbaPicHeight),
+        constraints: const BoxConstraints(maxHeight: _swiperPictureHeight),
         child: CarouselView(
           reverse: _reverseSwiper,
           controller: _swiperController,
           itemSnapping: true,
-          itemExtent: _kahrpbaPicWidth,
-          shrinkExtent: _kahrpbaPicWidth,
+          itemExtent: _swiperPictureWidth,
+          shrinkExtent: _swiperPictureWidth,
           onTap: (index) async {
             final parseResult = swiperUrlList[index].linkUrl.parseUrlToRoute();
             if (parseResult == null) {
@@ -78,14 +78,19 @@ class _WelcomeSectionState extends State<WelcomeSection> with LoggerMixin {
   // }
 
   Widget _buildSection(BuildContext context) {
-    if (!context.mounted) {
+    if (!context.mounted || widget.swiperUrlList.isEmpty) {
       return sizedBoxEmpty;
     }
 
-    return _buildKahrpbaSwiper(context, widget.swiperUrlList);
+    return _buildSwiper(context, widget.swiperUrlList);
   }
 
   void setupSwiperTimer(int itemCount) {
+    _swiperTimer?.cancel();
+    if (itemCount == 0) {
+      _swiperTimer = null;
+      return;
+    }
     _swiperTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
       double? target;
       if (_reverseSwiper) {
@@ -94,15 +99,15 @@ class _WelcomeSectionState extends State<WelcomeSection> with LoggerMixin {
             _reverseSwiper = false;
           });
         } else {
-          target = _swiperController.offset - _kahrpbaPicWidth;
+          target = _swiperController.offset - _swiperPictureWidth;
         }
       } else {
-        if (_swiperController.offset >= (itemCount - 3) * _kahrpbaPicWidth) {
+        if (_swiperController.offset >= (itemCount - 3) * _swiperPictureWidth) {
           setState(() {
             _reverseSwiper = true;
           });
         } else {
-          target = _swiperController.offset + _kahrpbaPicWidth;
+          target = _swiperController.offset + _swiperPictureWidth;
         }
       }
       if (target != null) {
@@ -116,6 +121,14 @@ class _WelcomeSectionState extends State<WelcomeSection> with LoggerMixin {
     super.initState();
     _swiperController = CarouselController();
     setupSwiperTimer(widget.swiperUrlList.length);
+  }
+
+  @override
+  void didUpdateWidget(WelcomeSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.swiperUrlList.length != widget.swiperUrlList.length) {
+      setupSwiperTimer(widget.swiperUrlList.length);
+    }
   }
 
   @override

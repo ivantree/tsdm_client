@@ -6,6 +6,7 @@ import 'package:tsdm_client/extensions/fp.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/extensions/universal_html.dart';
 import 'package:tsdm_client/features/authentication/repository/authentication_repository.dart';
+import 'package:tsdm_client/features/profile/internal/profile_parser.dart';
 import 'package:tsdm_client/features/profile/models/managed_forum.dart';
 import 'package:tsdm_client/features/profile/models/models.dart';
 import 'package:tsdm_client/features/profile/models/profile_medal.dart';
@@ -150,13 +151,13 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
       return TaskEither.left(ServerRespondedErrorException(errorText));
     }
 
-    final profileRootNode = document.querySelector('div#pprl > div.bm.bbda');
+    final profileRootNode = findProfileRoot(document);
 
     if (profileRootNode == null) {
       return TaskEither.left(ProfileStatusNotFoundException());
     }
 
-    final avatarUrl = document.querySelector('div#wp.wp div#ct.ct2 div.sd div.hm > p > a > img')?.imageUrl();
+    final avatarUrl = findProfileAvatarUrl(document, profileRootNode);
 
     // Basic info
     final username = profileRootNode.querySelector('h2.mbn')?.nodes.firstOrNull?.text?.trim();

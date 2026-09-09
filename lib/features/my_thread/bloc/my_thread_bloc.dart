@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:dart_mappable/dart_mappable.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:tsdm_client/constants/url.dart';
+import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/extensions/universal_html.dart';
 import 'package:tsdm_client/features/my_thread/models/models.dart';
@@ -48,6 +49,10 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
       _myThreadRepository.fetchDocument(myThreadThreadUrl).run(),
       _myThreadRepository.fetchDocument(myThreadReplyUrl).run(),
     ]);
+    if (data.any((v) => v.match((e) => e is MyThreadNeedLoginException, (_) => false))) {
+      emit(state.copyWith(status: MyThreadStatus.needLogin, refreshingThread: false, refreshingReply: false));
+      return;
+    }
     switch ((data[0], data[1])) {
       case (Right(value: final v1), Right(value: final v2)):
         final (threadList, threadNextPageUrl) = _parseThreadList(v1);
@@ -82,7 +87,7 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
           (e) {
             handle(e);
             error('failed to load next page of thread tab: $e');
-            emit(state.copyWith(status: MyThreadStatus.failed));
+            emit(state.copyWith(status: _statusForError(e)));
           },
           (v) {
             final (threadList, nextThreadPageUrl) = _parseThreadList(v);
@@ -110,7 +115,7 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
           (e) {
             handle(e);
             error('failed to load next page of reply tab: $e');
-            emit(state.copyWith(status: MyThreadStatus.failed));
+            emit(state.copyWith(status: _statusForError(e)));
           },
           (v) {
             final (replyList, nextReplyPageUrl) = _parseReplyList(v);
@@ -135,7 +140,7 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
           (e) {
             handle(e);
             error('failed to load next page of thread tab: $e');
-            emit(state.copyWith(status: MyThreadStatus.failed, refreshingThread: false));
+            emit(state.copyWith(status: _statusForError(e), refreshingThread: false));
           },
           (v) {
             final (threadList, nextThreadPageUrl) = _parseThreadList(v);
@@ -161,7 +166,7 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
           (e) {
             handle(e);
             error('failed to load next page of reply tab: $e');
-            emit(state.copyWith(status: MyThreadStatus.failed, refreshingReply: false));
+            emit(state.copyWith(status: _statusForError(e), refreshingReply: false));
           },
           (v) {
             final (replyList, nextReplyPageUrl) = _parseReplyList(v);
@@ -181,8 +186,7 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
 
   (List<MyThread>, String? nextPageurl) _parseThreadList(uh.Document document) {
     final data = document
-        .querySelectorAll('div.bm.bw0 > div.tl > form > table > tbody > tr')
-        .skip(1)
+        .querySelectorAll('div.tl form#delform table > tbody > tr:not(.th)')
         .map(MyThread.fromTr)
         .whereType<MyThread>()
         .toList();
@@ -194,11 +198,14 @@ final class MyThreadBloc extends Bloc<MyThreadEvent, MyThreadState> with LoggerM
 
   (List<MyThread>, String? nextPageUrl) _parseReplyList(uh.Document document) {
     final data = document
-        .querySelectorAll('div.bm.bw0 > div.tl > form > table > tbody > tr.bw0_all')
+        .querySelectorAll('div.tl form#delform table > tbody > tr.bw0_all')
         .map(MyThread.fromTr)
         .whereType<MyThread>()
         .toList();
     final nextPageUrl = document.querySelector('div.pgs.cl.mtm > div.pg > a.nxt')?.firstHref()?.prependHost();
     return (data, nextPageUrl);
   }
+
+  MyThreadStatus _statusForError(AppException error) =>
+      error is MyThreadNeedLoginException ? MyThreadStatus.needLogin : MyThreadStatus.failed;
 }

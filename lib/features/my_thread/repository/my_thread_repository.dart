@@ -7,6 +7,20 @@ import 'package:universal_html/parsing.dart';
 /// Repository of MyThread.
 class MyThreadRepository {
   /// Fetch html document from [url].
-  AsyncEither<uh.Document> fetchDocument(String url) =>
-      getIt.get<NetClientProvider>().get(url).mapHttp((v) => parseHtmlDocument(v.data as String));
+  AsyncEither<uh.Document> fetchDocument(String url) => getIt.get<NetClientProvider>().get(url).andThenHttp((v) {
+    final document = parseHtmlDocument(v.data as String);
+    if (isLoginRequired(document)) {
+      return taskLeft(MyThreadNeedLoginException());
+    }
+    return taskRight(document);
+  });
+
+  /// Whether [document] is a Discuz prompt asking the user to log in.
+  static bool isLoginRequired(uh.Document document) {
+    final message = document.querySelector('div#messagetext');
+    final hasLoginEntry =
+        message?.querySelector('a[href*="mod=logging"]') != null ||
+        document.querySelector('form[action*="mod=logging"] input[name="username"]') != null;
+    return message != null && hasLoginEntry;
+  }
 }

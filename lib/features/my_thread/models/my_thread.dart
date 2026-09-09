@@ -75,7 +75,7 @@ class MyThread with MyThreadMappable {
   ///   </tr>
   /// </tbody>
   static MyThread? fromTr(uh.Element element) {
-    final titleNode = element.querySelector('th:nth-child(2) > a');
+    final titleNode = element.querySelector('th > a');
     if (titleNode == null) {
       talker.info('title node not found in page. Maybe user has never posted');
       return null;
@@ -84,7 +84,7 @@ class MyThread with MyThreadMappable {
     final url = titleNode.firstHref();
     final threadID = url?.uriQueryParameter('tid') ?? url?.uriQueryParameter('ptid');
 
-    final forumNode = element.querySelector('td:nth-child(3) > a');
+    final forumNode = element.querySelector('th + td > a');
     final forumName = forumNode?.firstEndDeepText();
     final forumUrl = forumNode?.firstHref();
 

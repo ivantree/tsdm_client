@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:dart_bbcode_web_colors/dart_bbcode_web_colors.dart';
 import 'package:dart_mappable/dart_mappable.dart';

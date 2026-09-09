@@ -39,8 +39,13 @@ class AuthenticationBloc extends Bloc<AuthenticationEvent, AuthenticationState> 
   }
 
   Future<void> _onLoginRequested(_Emitter emit, UserCredential userCredential) async {
+    final loginHash = state.loginHash;
+    if (loginHash == null) {
+      emit(state.copyWith(status: AuthenticationStatus.failure, loginException: LoginInvalidFormHashException()));
+      return;
+    }
     emit(state.copyWith(status: AuthenticationStatus.loggingIn));
-    await _authenticationRepository.loginWithPassword(userCredential).match((e) {
+    await _authenticationRepository.loginWithPassword(loginHash, userCredential).match((e) {
       handle(e);
       emit(state.copyWith(status: AuthenticationStatus.failure, loginException: e));
     }, (_) => emit(state.copyWith(status: AuthenticationStatus.success))).run();
