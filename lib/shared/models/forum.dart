@@ -103,16 +103,12 @@ final class Forum with ForumMappable {
         (element.querySelector('td:nth-child(3) > span:nth-child(1)') ??
                 // 旅行者 theme
                 element.querySelector('td:nth-child(2) > span:nth-child(1)'))
-            ?.firstEndDeepText()
-            ?.parseToInt();
+            ?.forumCount();
     final replyCount =
         (element.querySelector('td:nth-child(3) > span:nth-child(2)') ??
                 // 旅行者 theme
                 element.querySelector('td:nth-child(2) > span:nth-child(2)'))
-            ?.firstEndDeepText()
-            ?.split(' ')
-            .lastOrNull
-            ?.parseToInt();
+            ?.forumCount();
 
     if (threadCount == null || replyCount == null) {
       talker.error(
@@ -144,6 +140,8 @@ final class Forum with ForumMappable {
         element.querySelector('td:nth-child(4) > div') ??
         // 旅行者 theme
         element.querySelector('td:nth-child(3) > div');
+    // We assume that the time text style of latest thread is always in span with title attribute, say it in recent
+    // 7 days.
     final latestThreadTime = latestThreadNode?.querySelector('cite > span')?.attributes['title']?.parseToDateTimeUtc8();
     final latestThreadTimeText = latestThreadNode?.querySelector('cite > span')?.firstEndDeepText();
     final latestThreadUrl = latestThreadNode?.querySelector('a')?.firstHref();
@@ -153,22 +151,20 @@ final class Forum with ForumMappable {
     final latestThreadUserName = latestThreadNode?.querySelector('cite > a')?.firstEndDeepText();
     final latestThreadUserUrl = latestThreadNode?.querySelector('cite > a')?.firstHref();
 
-    final subForumList =
-        element
-            .querySelectorAll('td > p')
-            .firstWhereOrNull((e) => e.nodes.firstOrNull?.text?.contains('子版块') ?? false)
-            ?.querySelectorAll('a')
-            .map((e) => (e.firstEndDeepText()?.trim(), e.attributes['href']))
-            .whereType<(String, String)>()
-            .toList();
+    final subForumList = element
+        .querySelectorAll('td > p')
+        .firstWhereOrNull((e) => e.nodes.firstOrNull?.text?.contains('子版块') ?? false)
+        ?.querySelectorAll('a')
+        .map((e) => (e.firstEndDeepText()?.trim(), e.attributes['href']))
+        .whereType<(String, String)>()
+        .toList();
 
-    final subThreadList =
-        element
-            .querySelectorAll('td > p a')
-            .where((e) => e.attributes['href']?.contains('tid=') ?? false)
-            .map((e) => (e.firstEndDeepText(), e.attributes['href']))
-            .whereType<(String, String)>()
-            .toList();
+    final subThreadList = element
+        .querySelectorAll('td > p a')
+        .where((e) => e.attributes['href']?.contains('tid=') ?? false)
+        .map((e) => (e.firstEndDeepText(), e.attributes['href']))
+        .whereType<(String, String)>()
+        .toList();
 
     return Forum(
       forumID: forumID,

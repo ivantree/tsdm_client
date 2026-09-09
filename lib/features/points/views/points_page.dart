@@ -11,6 +11,7 @@ import 'package:tsdm_client/features/points/widgets/points_query_form.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
 import 'package:tsdm_client/widgets/attr_block.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/single_line_text.dart';
 
 /// Page to show current logged user's points statistics and changelog.
@@ -31,7 +32,7 @@ class _PointsPageState extends State<PointsPage> with SingleTickerProviderStateM
 
   Widget _buildStatisticsTab(BuildContext context, PointsStatisticsState state) {
     if (state.status == PointsStatus.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const CenteredCircularIndicator();
     }
     _statisticsRefreshController.finishRefresh();
 
@@ -89,7 +90,7 @@ class _PointsPageState extends State<PointsPage> with SingleTickerProviderStateM
   Widget _buildChangelogTab(BuildContext context, PointsChangelogState state) {
     late final Widget body;
     if (state.status == PointsStatus.loading) {
-      body = const Expanded(child: Center(child: CircularProgressIndicator()));
+      body = const Expanded(child: CenteredCircularIndicator());
     } else {
       final changelogList = EasyRefresh(
         controller: _changelogRefreshController,
@@ -112,7 +113,7 @@ class _PointsPageState extends State<PointsPage> with SingleTickerProviderStateM
           padding: edgeInsetsL12T4R12.add(context.safePadding()),
           itemCount: state.fullChangelog.length,
           itemBuilder: (_, index) => PointsChangeCard(state.fullChangelog[index]),
-          separatorBuilder: (_, __) => sizedBoxW4H4,
+          separatorBuilder: (_, _) => sizedBoxW4H4,
         ),
       );
 
@@ -124,7 +125,11 @@ class _PointsPageState extends State<PointsPage> with SingleTickerProviderStateM
       ..finishRefresh();
 
     return Column(
-      children: [Padding(padding: edgeInsetsL12T4R12, child: PointsQueryForm(state.allParameters)), sizedBoxW4H4, body],
+      children: [
+        Padding(padding: edgeInsetsL12T4R12, child: PointsQueryForm(state.allParameters)),
+        sizedBoxW4H4,
+        body,
+      ],
     );
   }
 
@@ -155,14 +160,12 @@ class _PointsPageState extends State<PointsPage> with SingleTickerProviderStateM
       providers: [
         RepositoryProvider(create: (_) => PointsRepository()),
         BlocProvider(
-          create:
-              (context) =>
-                  PointsStatisticsBloc(pointsRepository: context.repo())..add(PointsStatisticsRefreshRequested()),
+          create: (context) =>
+              PointsStatisticsBloc(pointsRepository: context.repo())..add(PointsStatisticsRefreshRequested()),
         ),
         BlocProvider(
-          create:
-              (context) =>
-                  PointsChangelogBloc(pointsRepository: context.repo())..add(PointsChangelogRefreshRequested()),
+          create: (context) =>
+              PointsChangelogBloc(pointsRepository: context.repo())..add(PointsChangelogRefreshRequested()),
         ),
       ],
       child: Scaffold(
@@ -170,7 +173,10 @@ class _PointsPageState extends State<PointsPage> with SingleTickerProviderStateM
           title: Text(tr.title),
           bottom: TabBar(
             controller: _tabController,
-            tabs: [Tab(text: tr.statisticsTab.title), Tab(text: tr.changelogTab.title)],
+            tabs: [
+              Tab(text: tr.statisticsTab.title),
+              Tab(text: tr.changelogTab.title),
+            ],
           ),
         ),
         body: SafeArea(

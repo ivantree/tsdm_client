@@ -4,9 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/list.dart';
 import 'package:tsdm_client/extensions/string.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/utils/clipboard.dart';
 import 'package:tsdm_client/widgets/annimate/animated_visibility.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// Link prefix, originally in quill_flutter.
 const _linkPrefixes = [
@@ -39,7 +42,7 @@ Future<PickUrlResult?> showUrlPicker(
   required String? description,
 }) async => showDialog<PickUrlResult>(
   context: context,
-  builder: (context) => UrlDialog(initialUrl: url, initialDescription: description),
+  builder: (context) => RootPage(DialogPaths.urlPicker, UrlDialog(initialUrl: url, initialDescription: description)),
 );
 
 /// Show a dialog to insert url and description.
@@ -95,7 +98,7 @@ class _UrlDialogState extends State<UrlDialog> {
   @override
   Widget build(BuildContext context) {
     final tr = context.t.bbcodeEditor.url;
-    return AlertDialog(
+    return CustomAlertDialog.sync(
       clipBehavior: Clip.antiAlias,
       title: Text(context.t.bbcodeEditor.url.title),
       content: Form(
@@ -124,7 +127,7 @@ class _UrlDialogState extends State<UrlDialog> {
                 Row(
                   children: [
                     TextButton(
-                      child: Text(tr.autoPaste.tip),
+                      child: Text(tr.autoPaste.action),
                       onPressed: () async {
                         final bilibiliText = await getPlainTextFromClipboard();
                         if (bilibiliText == null) {
@@ -147,6 +150,7 @@ class _UrlDialogState extends State<UrlDialog> {
                     const Spacer(),
                     IconButton(
                       icon: const Icon(Icons.info_outline),
+                      tooltip: tr.autoPaste.tip,
                       onPressed: () => setState(() => _bilibiliTipExpanded = !_bilibiliTipExpanded),
                     ),
                   ],

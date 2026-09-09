@@ -4,22 +4,33 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/constants/layout.dart';
+import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/extensions/date_time.dart';
 import 'package:tsdm_client/extensions/list.dart';
+import 'package:tsdm_client/extensions/string.dart';
+import 'package:tsdm_client/extensions/uri.dart';
 import 'package:tsdm_client/features/latest_thread/models/latest_thread.dart';
 import 'package:tsdm_client/features/my_thread/models/models.dart';
 import 'package:tsdm_client/features/search/models/models.dart';
 import 'package:tsdm_client/features/settings/bloc/settings_bloc.dart';
+import 'package:tsdm_client/features/thread/v1/utils/dialog.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/themes/widget_themes.dart';
+import 'package:tsdm_client/widgets/adaptive_ink_response.dart';
 import 'package:tsdm_client/widgets/heroes.dart';
 import 'package:tsdm_client/widgets/quoted_text.dart';
 import 'package:tsdm_client/widgets/single_line_text.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 typedef _ThreadInfo = (IconData, String);
+
+/// All actions used in the context menu.
+///
+/// The context menu is opened by either long press or right click, depending on the platform.
+enum _CtxMenuActions { openInBrowser, viewInfo }
 
 class _CardLayout extends StatelessWidget {
   const _CardLayout({
@@ -63,23 +74,70 @@ class _CardLayout extends StatelessWidget {
   Card _wrapWithCard(BuildContext context, Widget child) => Card(
     margin: EdgeInsets.zero,
     clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap:
-          disableTap
-              ? null
-              : () async {
-                await context.pushNamed(
-                  ScreenPaths.threadV1,
-                  // pathParameters: {'id': threadID},
-                  // FIXME: Query parameters are not recognized by v2 yet.
-                  queryParameters: {
-                    'tid': threadID,
-                    'appBarTitle': title,
-                    'threadTypeName': threadType?.name,
-                    'threadTypeID': Uri.tryParse(threadType?.url ?? '')?.queryParameters['typeid'],
-                  },
-                );
-              },
+    child: AdaptiveInkResponse(
+      onTap: disableTap
+          ? null
+          : () async {
+              await context.pushNamed(
+                ScreenPaths.threadV1,
+                // pathParameters: {'id': threadID},
+                // FIXME: Query parameters are not recognized by v2 yet.
+                queryParameters: {
+                  'tid': threadID,
+                  'appBarTitle': title,
+                  'threadTypeName': threadType?.name,
+                  'threadTypeID': threadType?.url.tryParseAsUri().tryGetQueryParameters()?['typeid'],
+                },
+              );
+            },
+      onAdaptiveContextTap: (tapPosition) async {
+        // Get the position where the tap occurred.
+        RelativeRect? position;
+        position = RelativeRect.fromRect(
+          tapPosition.globalPosition & Size.zero, // Rect from the tap position
+          Offset.zero & MediaQuery.of(context).size, // Bounding box for the menu
+        );
+        final choice = await showMenu<_CtxMenuActions>(
+          context: context,
+          position: position,
+          items: <PopupMenuEntry<_CtxMenuActions>>[
+            PopupMenuItem(
+              value: _CtxMenuActions.openInBrowser,
+              child: Row(
+                children: [
+                  const Icon(Icons.open_in_browser_outlined),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(context.t.general.openInBrowser),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: _CtxMenuActions.viewInfo,
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(context.t.threadCard.viewInfo),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        if (choice == null || !context.mounted) {
+          return;
+        }
+
+        switch (choice) {
+          case _CtxMenuActions.openInBrowser:
+            await launchUrl(
+              Uri.parse('$baseUrl/forum.php?mod=viewthread&tid=$threadID'),
+              mode: LaunchMode.externalApplication,
+            );
+          case _CtxMenuActions.viewInfo:
+            await showCopyThreadInfoDialog(context: context, tid: threadID, title: title);
+        }
+      },
       child: child,
     ),
   );
@@ -124,27 +182,26 @@ class _CardLayout extends StatelessWidget {
           children: [
             Expanded(
               child: Row(
-                children:
-                    infoList
-                        .map(
-                          (e) => Expanded(
-                            child: Row(
-                              children: [
-                                Icon(e.$1, size: smallIconSize, color: infoColor),
-                                sizedBoxW4H4,
-                                Expanded(
-                                  child: Text(
-                                    e.$2,
-                                    style: TextStyle(fontSize: smallTextSize, color: infoColor),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.clip,
-                                  ),
-                                ),
-                              ],
+                children: infoList
+                    .map(
+                      (e) => Expanded(
+                        child: Row(
+                          children: [
+                            Icon(e.$1, size: smallIconSize, color: infoColor),
+                            sizedBoxW4H4,
+                            Expanded(
+                              child: Text(
+                                e.$2,
+                                style: TextStyle(fontSize: smallTextSize, color: infoColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.clip,
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ],
@@ -157,18 +214,21 @@ class _CardLayout extends StatelessWidget {
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children:
-                infoList
-                    .map(
-                      (e) => [
-                        Icon(e.$1, size: smallIconSize, color: infoColor),
-                        sizedBoxW4H4,
-                        Text(e.$2, style: TextStyle(fontSize: smallTextSize, color: infoColor), maxLines: 1),
-                        sizedBoxW12H12,
-                      ],
-                    )
-                    .flattened
-                    .toList(),
+            children: infoList
+                .map(
+                  (e) => [
+                    Icon(e.$1, size: smallIconSize, color: infoColor),
+                    sizedBoxW4H4,
+                    Text(
+                      e.$2,
+                      style: TextStyle(fontSize: smallTextSize, color: infoColor),
+                      maxLines: 1,
+                    ),
+                    sizedBoxW12H12,
+                  ],
+                )
+                .flattened
+                .toList(),
           ),
         ),
       );

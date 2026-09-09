@@ -73,6 +73,24 @@ extension AccessExtension on Element {
 
 /// Grep extension for [Element] type.
 extension GrepExtension on Element {
+  /// Parse a forum count, preferring the exact value in `title`.
+  int? forumCount() {
+    final exactValue = attributes['title']?.replaceAll(',', '').trim().parseToInt();
+    if (exactValue != null) {
+      return exactValue;
+    }
+
+    final displayedValue = firstEndDeepText()?.replaceAll(',', '').trim();
+    final countText = RegExp(r'(\d+(?:\.\d+)?万?)$').firstMatch(displayedValue ?? '')?.group(1);
+    final plainValue = countText?.parseToInt();
+    if (plainValue != null) {
+      return plainValue;
+    }
+
+    final abbreviatedValue = RegExp(r'^(\d+(?:\.\d+)?)万$').firstMatch(countText ?? '')?.group(1);
+    return abbreviatedValue == null ? null : (double.parse(abbreviatedValue) * 10000).round();
+  }
+
   /// Search the first value of attr "href" in pre-order use [Element] element
   /// as root node.
   /// * Search in first child and next siblings when next is true.
@@ -182,17 +200,16 @@ extension GrepExtension on Element {
     } else if (children.length >= 2 && !second) {
       // More than one element.
       // Try remove the first <em> element and return all html code left.
-      value =
-          nodes
-              .skip(1)
-              .map(
-                (e) => switch (e.nodeType) {
-                  Node.ELEMENT_NODE => (e as Element).outerHtml,
-                  Node.TEXT_NODE => e.text,
-                  _ => '',
-                },
-              )
-              .join();
+      value = nodes
+          .skip(1)
+          .map(
+            (e) => switch (e.nodeType) {
+              Node.ELEMENT_NODE => (e as Element).outerHtml,
+              Node.TEXT_NODE => e.text,
+              _ => '',
+            },
+          )
+          .join();
     } else {
       // Expected value is a text node.
       // Use the trimmed text
@@ -219,12 +236,16 @@ extension GrepExtension on Element {
   ///
   /// There is a priority difference between different node attributes.
   ///
-  /// zoomfile > data-original > src > file.
+  /// zoomfile > data-original > data-src > src > file.
   ///
   /// Return null if no available image url found.
   String? imageUrl() {
     final str =
-        attributes['zoomfile']?.prependHost() ?? attributes['data-original'] ?? attributes['src'] ?? attributes['file'];
+        attributes['zoomfile']?.prependHost() ??
+        attributes['data-original'] ??
+        attributes['data-src'] ??
+        attributes['src'] ??
+        attributes['file'];
 
     if (str == null) {
       return null;
@@ -266,18 +287,59 @@ extension GrepExtension on Element {
 
   /// Parse the datetime on current node or first child.
   ///
+  /// In many situations the date time text format is not the same, especially when in recent 7 days.
+  ///
+  /// Use this function as a unified way to get the correct date time.
+  ///
+  /// Example:
+  ///
   /// From current node `<span>`'s title attribute or first child (usually
   /// a span, too)  's title attribute.
   DateTime? dateTime() {
-    if (tagName != 'SPAN') {
-      return null;
-    }
-    if (classes.contains('xg1')) {
-      final text1 = innerText.parseToDateTimeUtc8();
-      if (text1 != null) {
-        return text1;
+    if (tagName == 'A') {
+      // Use case: last reply time in threads in my thread page.
+      if (children.firstOrNull?.tagName == 'SPAN') {
+        // Recent 7 days.
+        return children.first.attributes['title']?.parseToDateTimeUtc8();
       }
+
+      // More than 7 days.
+      return nodes.firstOrNull?.text?.trim().parseToDateTimeUtc8();
     }
-    return children.firstOrNull?.attributes['title']?.parseToDateTimeUtc8();
+
+    if (tagName == 'SPAN') {
+      if (attributes.containsKey('title')) {
+        // Use case: rate log item in recent 7 days.
+        return attributes['title']!.parseToDateTimeUtc8();
+      }
+
+      // Use case: broadcast message publish time in broadcast page.
+      if (children.firstOrNull?.tagName == 'SPAN') {
+        // Recent 7 days.
+        return children.firstOrNull?.attributes['title']?.parseToDateTimeUtc8();
+      }
+
+      // More than 7 days.
+      return innerText.trim().parseToDateTimeUtc8();
+    }
+
+    // Try parse it.
+
+    if (children.firstOrNull?.tagName == 'SPAN' && children.first.attributes.containsKey('title')) {
+      return children.first.attributes['title']!.parseToDateTimeUtc8();
+    }
+
+    if (nodes.firstOrNull?.nodeType == Node.TEXT_NODE) {
+      final childText = nodes.first.text ?? '';
+      if (childText.startsWith('发表于')) {
+        // Use case: post publish time in post floor.
+        // 发表于 $time
+        return childText.replaceAll('发表于', '').trim().parseToDateTimeUtc8();
+      }
+
+      return nodes.first.text?.trim().parseToDateTimeUtc8();
+    }
+
+    return null;
   }
 }

@@ -4,7 +4,7 @@ part of 'dao.dart';
 @DriftAccessor(tables: [UserAvatar])
 final class UserAvatarDao extends DatabaseAccessor<AppDatabase> with _$UserAvatarDaoMixin {
   /// Constructor.
-  UserAvatarDao(super.db);
+  UserAvatarDao(super.attachedDatabase);
 
   /// Select all cache.
   Future<List<UserAvatarEntity>> selectAll() async {
@@ -18,9 +18,9 @@ final class UserAvatarDao extends DatabaseAccessor<AppDatabase> with _$UserAvata
       return (select(userAvatar)..where((e) => e.username.equals(username))).getSingleOrNull();
     }
 
-    return (select(userAvatar)..where(
-      (e) => e.username.equals(username) & (e.imageUrl.equals(imageUrl) | e.imageUrl.isNull()),
-    )).getSingleOrNull();
+    return (select(userAvatar)
+          ..where((e) => e.username.equals(username) & (e.imageUrl.equals(imageUrl) | e.imageUrl.isNull())))
+        .getSingleOrNull();
   }
 
   /// Save avatar cache.

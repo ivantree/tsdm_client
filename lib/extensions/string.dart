@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:html/parser.dart' as h;
 import 'package:tsdm_client/constants/url.dart';
+import 'package:tsdm_client/extensions/uri.dart';
 import 'package:tsdm_client/features/post/models/models.dart';
+import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:uuid/uuid.dart';
 
@@ -36,11 +38,10 @@ extension ParseUrl on String {
   /// Try parse string to [RecognizedRoute] with arguments.
   /// Return null if string is unsupported route.
   RecognizedRoute? parseUrlToRoute() {
-    final url = Uri.tryParse(this);
-    if (url == null) {
+    final queryParameters = tryParseAsUri().tryGetQueryParameters();
+    if (queryParameters == null) {
       return null;
     }
-    final queryParameters = url.queryParameters;
     final anchor = _anchorRe.firstMatch(this)?.namedGroup('anchor');
 
     final mod = queryParameters['mod'];
@@ -57,7 +58,7 @@ extension ParseUrl on String {
         ScreenPaths.forum,
         pathParameters: {'fid': "${queryParameters['fid']}"},
         queryParameters: {
-          if (threadTypeID != null) 'threadTypeID': threadTypeID,
+          'threadTypeID': ?threadTypeID,
           // FIXME: The FilterType originally is for showing the thread type name, but now the name is unknown when
           // parsing route in url. For now it's safe to add empty thread type name to let the page apply initial filter
           // state. If the name field not present, typeid is also discarded, this is the more one we we dont want.
@@ -81,7 +82,7 @@ extension ParseUrl on String {
           if (queryParameters.containsKey('page')) 'pageNumber': "${queryParameters['page']}",
           if (anchor != null) 'overrideReverseOrder': 'false',
           if (order != null) 'overrideWithExactOrder': '$order',
-          if (anchor != null) 'pid': anchor,
+          'pid': ?anchor,
           if (queryParameters.containsKey('authorid')) 'onlyVisibleUid': "${queryParameters['authorid']}",
         },
       );
@@ -191,7 +192,7 @@ extension ParseUrl on String {
 
   /// Parse self as an uri and return the value of parameter [name].
   String? uriQueryParameter(String name) {
-    return Uri.parse(this).queryParameters[name];
+    return tryParseAsUri().tryGetQueryParameters()?[name];
   }
 
   /// Check a string is pattern of user space url.
@@ -203,7 +204,7 @@ extension ParseUrl on String {
   /// 3. In query parameters, contains key 'uid' or 'username'. (email ignored).
   /// 4. In query parameters, value of 'ac' is neither 'usergroup' nor 'credit'.
   bool get isUserSpaceUrl {
-    final args = Uri.tryParse(this)?.queryParameters;
+    final args = tryParseAsUri().tryGetQueryParameters();
     if (args == null) {
       return false;
     }
@@ -222,6 +223,18 @@ extension ParseUrl on String {
     }
 
     return true;
+  }
+
+  /// Parse as url.
+  ///
+  /// Return null if any exception is thrown in the parsing process. And log an error message if so.
+  Uri? tryParseAsUri() {
+    try {
+      return Uri.parse(this);
+    } on Exception catch (e, st) {
+      talker.handle('failed to parse maybe user space url: $e', st);
+      return null;
+    }
   }
 }
 

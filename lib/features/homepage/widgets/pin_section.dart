@@ -35,13 +35,13 @@ class PinSection extends StatelessWidget with LoggerMixin {
       ),
       subtitle: isRank ? null : SingleLineText(threadTitle, overflow: TextOverflow.ellipsis),
       trailing: isRank ? SingleLineText(threadTitle) : null,
-      onTap: () {
+      onTap: () async {
         final target = pinnedThread.threadUrl.parseUrlToRoute();
         if (target == null) {
           error('invalid pinned thread url: ${pinnedThread.threadUrl}');
           return;
         }
-        context.pushNamed(
+        await context.pushNamed(
           target.screenPath,
           pathParameters: target.pathParameters,
           queryParameters: target.queryParameters.copyWith({'appBarTitle': pinnedThread.threadTitle}),
@@ -54,16 +54,19 @@ class PinSection extends StatelessWidget with LoggerMixin {
   /// wrap in a [Card].
   /// All [PinnedThread] inside [threads] should guarantee not null.
   Widget _buildSectionThreads(BuildContext context, List<PinnedThread?> threads, {bool reverseTitle = false}) {
-    final listTileList =
-        threads.whereType<PinnedThread>().map((e) => _sectionThreadBuilder(context, e, isRank: reverseTitle)).toList();
+    final listTileList = threads
+        .whereType<PinnedThread>()
+        .map((e) => _sectionThreadBuilder(context, e, isRank: reverseTitle))
+        .toList();
 
     return Column(children: listTileList);
   }
 
-  Widget _buildSection(BuildContext context) {
+  Widget _buildSection(BuildContext context, double textScaleFactor) {
     final ret = <Widget>[];
 
     final count = pinnedThreadGroup.length;
+    final maxThreadCount = pinnedThreadGroup.map((e) => e.threadList.length).fold(0, math.max);
 
     for (var i = 0; i < count; i++) {
       final sectionName = pinnedThreadGroup[i].title;
@@ -76,7 +79,12 @@ class PinSection extends StatelessWidget with LoggerMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [sizedBoxW12H12, Text(sectionName, style: Theme.of(context).textTheme.titleLarge)]),
+                Row(
+                  children: [
+                    sizedBoxW12H12,
+                    Text(sectionName, style: Theme.of(context).textTheme.titleLarge),
+                  ],
+                ),
                 sizedBoxW12H12,
                 threadWidgetList,
               ],
@@ -88,9 +96,9 @@ class PinSection extends StatelessWidget with LoggerMixin {
 
     return GridView(
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 600,
-        mainAxisExtent: 700,
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 670,
+        mainAxisExtent: math.max(700, 84 + maxThreadCount * 72 + math.max(25 * ((textScaleFactor - 1) / 0.1), 0)),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
       ),
@@ -101,6 +109,7 @@ class PinSection extends StatelessWidget with LoggerMixin {
 
   @override
   Widget build(BuildContext context) {
-    return _buildSection(context);
+    final textScaleFactor = context.select<SettingsBloc, double>((bloc) => bloc.state.settingsMap.textScaleFactor);
+    return _buildSection(context, textScaleFactor);
   }
 }

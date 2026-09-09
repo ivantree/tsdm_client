@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:fpdart/fpdart.dart';
-import 'package:tsdm_client/constants/constants.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/shared/models/notification_type.dart';
@@ -67,7 +66,7 @@ Future<Map<String, ImageEntity>> preloadImageCache(AppDatabase db) async {
 /// [StorageProvider] should be used by other providers.
 class StorageProvider with LoggerMixin {
   /// Constructor.
-  const StorageProvider(this._db, this._cookieCache, this._imageCache);
+  StorageProvider(this._db, this._cookieCache, this._imageCache);
 
   /// Injected database
   final AppDatabase _db;
@@ -84,7 +83,7 @@ class StorageProvider with LoggerMixin {
   /// Access this field to avoid disk IO and make it synchronous.
   ///
   /// MUST update during image cache setter calls.
-  final Map<String, ImageEntity> _imageCache;
+  Map<String, ImageEntity> _imageCache;
 
   /// Get the stream of all users in storage.
   Stream<List<UserLoginInfo>> allUsersStream() {
@@ -168,7 +167,7 @@ class StorageProvider with LoggerMixin {
     final userInfo = UserLoginInfo(username: username, uid: uid /*, email: email*/);
     _cookieCache[userInfo] = allCookie;
 
-    if (!allCookie.toString().contains('${cookiePrefix}_auth')) {
+    if (!containsDiscuzAuthCookie(allCookie)) {
       // Only save cookie when cookie is authed.
       info('refuse to save not authed cookie');
       return;
@@ -255,13 +254,22 @@ class StorageProvider with LoggerMixin {
     if (_imageCache.containsKey(url)) {
       _imageCache[url] = _imageCache[url]!.copyWith(lastUsedTime: now);
     }
-    await ImageDao(_db).upsertImageCache(ImageCompanion(url: Value(url), lastUsedTime: Value(now)));
+    await ImageDao(_db).updateImageCache(url: url, lastUsedTime: now);
   }
 
   /// Clear all image cache in database.
   Future<void> clearImageCache() async {
     _imageCache.clear();
     await ImageDao(_db).deleteAll();
+  }
+
+  /// Clear all image cache have a older not-used-time then [dateTime].
+  ///
+  /// Return all deleted image cache entity.
+  Future<List<ImageEntity>> clearImageCacheOutdated(DateTime dateTime) async {
+    final deletedCache = await ImageDao(_db).deleteByLastUsedDuration(dateTime);
+    _imageCache = await preloadImageCache(_db);
+    return deletedCache;
   }
 
   /*             settings             */
@@ -326,6 +334,19 @@ class StorageProvider with LoggerMixin {
 
   /// Save [Size] type value of specified key.
   Future<void> saveSize(String key, Size value) async => SettingsDao(_db).setValue<Size>(key, value);
+
+  /// Get [List] of [String] type value of specified key.
+  Future<List<String>?> getStringList(String key) async => SettingsDao(_db).getValueByName(key);
+
+  /// Save [List] of [String] type value of specified key.
+  Future<void> saveStringList(String key, List<String> value) async =>
+      SettingsDao(_db).setValue<List<String>>(key, value);
+
+  /// Get [List] of [int] type value of specified key.
+  Future<List<int>?> getIntList(String key) async => SettingsDao(_db).getValueByName(key);
+
+  /// Save [List] of [int] type value of specified key.
+  Future<void> saveIntList(String key, List<int> value) async => SettingsDao(_db).setValue<List<int>>(key, value);
 
   /// Delete the given record from database.
   Future<void> deleteKey(String key) async {
@@ -427,44 +448,41 @@ class StorageProvider with LoggerMixin {
   /// Save a group of notice for user [uid] into storage.
   VoidTask saveNotification({required int uid, required NotificationGroup notificationGroup}) => VoidTask(() async {
     await NotificationDao(_db).insertManyNotice(
-      noticeList:
-          notificationGroup.noticeList
-              .map(
-                (e) => NoticeCompanion(
-                  uid: Value(uid),
-                  timestamp: Value(e.timestamp),
-                  data: Value(e.data),
-                  nid: Value(e.nid),
-                  alreadyRead: Value(e.alreadyRead),
-                ),
-              )
-              .toList(),
-      personalMessageList:
-          notificationGroup.personalMessageList
-              .map(
-                (e) => PersonalMessageCompanion(
-                  uid: Value(uid),
-                  timestamp: Value(e.timestamp),
-                  data: Value(e.data),
-                  peerUid: Value(e.peerUid),
-                  peerUsername: Value(e.peerUsername),
-                  sender: Value(e.sender),
-                  alreadyRead: Value(e.alreadyRead),
-                ),
-              )
-              .toList(),
-      broadcastMessageList:
-          notificationGroup.broadcastMessageList
-              .map(
-                (e) => BroadcastMessageCompanion(
-                  uid: Value(uid),
-                  timestamp: Value(e.timestamp),
-                  data: Value(e.data),
-                  pmid: Value(e.pmid),
-                  alreadyRead: Value(e.alreadyRead),
-                ),
-              )
-              .toList(),
+      noticeList: notificationGroup.noticeList
+          .map(
+            (e) => NoticeCompanion(
+              uid: Value(uid),
+              timestamp: Value(e.timestamp),
+              data: Value(e.data),
+              nid: Value(e.nid),
+              alreadyRead: Value(e.alreadyRead),
+            ),
+          )
+          .toList(),
+      personalMessageList: notificationGroup.personalMessageList
+          .map(
+            (e) => PersonalMessageCompanion(
+              uid: Value(uid),
+              timestamp: Value(e.timestamp),
+              data: Value(e.data),
+              peerUid: Value(e.peerUid),
+              peerUsername: Value(e.peerUsername),
+              sender: Value(e.sender),
+              alreadyRead: Value(e.alreadyRead),
+            ),
+          )
+          .toList(),
+      broadcastMessageList: notificationGroup.broadcastMessageList
+          .map(
+            (e) => BroadcastMessageCompanion(
+              uid: Value(uid),
+              timestamp: Value(e.timestamp),
+              data: Value(e.data),
+              pmid: Value(e.pmid),
+              alreadyRead: Value(e.alreadyRead),
+            ),
+          )
+          .toList(),
     );
   });
 
@@ -536,6 +554,118 @@ class StorageProvider with LoggerMixin {
       UserAvatarCompanion(username: Value(username), cacheName: Value(cacheName), imageUrl: Value(imageUrl)),
     );
 
+    return rightVoid();
+  });
+
+  /*        Fast rate template       */
+
+  /// Get all fast rate template from storage.
+  ///
+  /// No matter uid.
+  AsyncEither<List<FastRateTemplateModel>> getAllFastRateTemplate() => AsyncEither(() async {
+    final rates = (await FastRateTemplateDao(_db).selectAll())
+        .map(
+          (e) => FastRateTemplateModel(
+            name: e.name,
+            ww: e.ww,
+            tsb: e.tsb,
+            xc: e.xc,
+            tr: e.tr,
+            fh: e.fh,
+            jl: e.jl,
+            special: e.special,
+            special2: e.special2 ?? 0,
+          ),
+        )
+        .toList();
+    return right(rates);
+  });
+
+  /// Watch all
+  Stream<List<FastRateTemplateModel>> watchAllFastRateTemplate() => FastRateTemplateDao(_db).watchAll().map(
+    (e) => e
+        .map(
+          (e2) => FastRateTemplateModel(
+            name: e2.name,
+            ww: e2.ww,
+            tsb: e2.tsb,
+            xc: e2.xc,
+            tr: e2.tr,
+            fh: e2.fh,
+            jl: e2.jl,
+            special: e2.special,
+            special2: e2.special2 ?? 0,
+          ),
+        )
+        .toList(),
+  );
+
+  /// Save fast [rate] template to storage.
+  AsyncVoidEither saveFastRateTemplate(FastRateTemplateModel rate) => AsyncEither(() async {
+    await FastRateTemplateDao(_db).insertOrUpdate(
+      FastRateTemplateCompanion(
+        name: Value(rate.name),
+        ww: Value(rate.ww),
+        tsb: Value(rate.tsb),
+        xc: Value(rate.xc),
+        tr: Value(rate.tr),
+        fh: Value(rate.fh),
+        jl: Value(rate.jl),
+        lastUsedTime: Value(DateTime.now()),
+        special: Value(rate.special),
+        special2: Value(rate.special2),
+      ),
+    );
+
+    return rightVoid();
+  });
+
+  /// Delete all fast rate templates from storage.
+  AsyncVoidEither deleteAllFastRateTemplate() => AsyncEither(() async {
+    await FastRateTemplateDao(_db).deleteAll();
+    return rightVoid();
+  });
+
+  /// Delete the one fast rate template specified by template [name].
+  AsyncVoidEither deleteFastRateTemplateByName(String name) => AsyncEither(() async {
+    await FastRateTemplateDao(_db).deleteByName(name);
+    return rightVoid();
+  });
+
+  /*        Fast reply template       */
+
+  /// Get all fast reply templates from storage.
+  AsyncEither<List<FastReplyTemplateModel>> getAllFastReplyTemplate() => AsyncEither(() async {
+    final rate = (await FastReplyTemplateDao(
+      _db,
+    ).selectAll()).map((e) => FastReplyTemplateModel(name: e.name, data: e.data)).toList();
+
+    return right(rate);
+  });
+
+  /// Watch the changes of fast reply templates in storage.
+  Stream<List<FastReplyTemplateModel>> watchAllFastReplyTemplate() => FastReplyTemplateDao(
+    _db,
+  ).watchAll().map((e) => e.map((e2) => FastReplyTemplateModel(name: e2.name, data: e2.data)).toList());
+
+  /// Save fast [reply] template to storage.
+  AsyncVoidEither saveFastReplyTemplate(FastReplyTemplateModel reply) => AsyncEither(() async {
+    await FastReplyTemplateDao(_db).insertOrUpdate(
+      FastReplyTemplateCompanion(name: Value(reply.name), data: Value(reply.data), lastUsedTime: Value(DateTime.now())),
+    );
+
+    return rightVoid();
+  });
+
+  /// Delete all fast reply templates from storage.
+  AsyncVoidEither deleteAllFastReplyTemplate() => AsyncEither(() async {
+    await FastReplyTemplateDao(_db).deleteAll();
+    return rightVoid();
+  });
+
+  /// Delete fast reply template specified by template [name].
+  AsyncVoidEither deleteFastReplyTemplateByName(String name) => AsyncEither(() async {
+    await FastReplyTemplateDao(_db).deleteByName(name);
     return rightVoid();
   });
 

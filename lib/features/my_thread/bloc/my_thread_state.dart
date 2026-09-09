@@ -15,6 +15,9 @@ enum MyThreadStatus {
   /// Load succeed.
   success,
 
+  /// Login is required to load the current user's posts.
+  needLogin,
+
   /// Load failed.
   failed,
 }

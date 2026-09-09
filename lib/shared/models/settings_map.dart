@@ -28,7 +28,6 @@ class SettingsMap with SettingsMapMappable {
     required this.accentColor,
     required this.accentColorFollowSystem,
     required this.showUnreadInfoHint,
-    required this.doublePressExit,
     required this.threadReverseOrder,
     required this.threadCardInfoRowAlignCenter,
     required this.threadCardShowLastReplyAuthor,
@@ -46,6 +45,13 @@ class SettingsMap with SettingsMapMappable {
     required this.fontFamily,
     required this.enableEditorBBCodeParser,
     required this.enableUpdateCheckOnStartup,
+    required this.editorRecentUsedCustomColors,
+    required this.useDetectedProxyWhenStartup,
+    required this.enableAutoClearImageCache,
+    required this.autoClearImageCacheDuration,
+    required this.collapseAppBarWhenScroll,
+    required this.threadFloorInteractionMode,
+    required this.textScaleFactor,
   });
 
   final String netClientAccept;
@@ -68,7 +74,6 @@ class SettingsMap with SettingsMapMappable {
   final int accentColor;
   final bool accentColorFollowSystem;
   final bool showUnreadInfoHint;
-  final bool doublePressExit;
   final bool threadReverseOrder;
   final bool threadCardInfoRowAlignCenter;
   final bool threadCardShowLastReplyAuthor;
@@ -86,6 +91,13 @@ class SettingsMap with SettingsMapMappable {
   final String fontFamily;
   final bool enableEditorBBCodeParser;
   final bool enableUpdateCheckOnStartup;
+  final List<int> editorRecentUsedCustomColors;
+  final bool useDetectedProxyWhenStartup;
+  final bool enableAutoClearImageCache;
+  final int autoClearImageCacheDuration;
+  final bool collapseAppBarWhenScroll;
+  final ThreadFloorInteractionMode threadFloorInteractionMode;
+  final double textScaleFactor;
 
   SettingsMap copyWithKey<T>(SettingsKeys<T> key, T? value) {
     assert(
@@ -115,7 +127,6 @@ class SettingsMap with SettingsMapMappable {
       SettingsKeys.accentColor => copyWith(accentColor: value as int?),
       SettingsKeys.accentColorFollowSystem => copyWith(accentColorFollowSystem: value as bool?),
       SettingsKeys.showUnreadInfoHint => copyWith(showUnreadInfoHint: value as bool?),
-      SettingsKeys.doublePressExit => copyWith(doublePressExit: value as bool?),
       SettingsKeys.threadReverseOrder => copyWith(threadReverseOrder: value as bool?),
       SettingsKeys.threadCardInfoRowAlignCenter => copyWith(threadCardInfoRowAlignCenter: value as bool?),
       SettingsKeys.threadCardShowLastReplyAuthor => copyWith(threadCardShowLastReplyAuthor: value as bool?),
@@ -133,6 +144,15 @@ class SettingsMap with SettingsMapMappable {
       SettingsKeys.fontFamily => copyWith(fontFamily: value as String?),
       SettingsKeys.enableEditorBBCodeParser => copyWith(enableEditorBBCodeParser: value as bool?),
       SettingsKeys.enableUpdateCheckOnStartup => copyWith(enableUpdateCheckOnStartup: value as bool?),
+      SettingsKeys.editorRecentUsedCustomColors => copyWith(editorRecentUsedCustomColors: value as List<int>?),
+      SettingsKeys.useDetectedProxyWhenStartup => copyWith(useDetectedProxyWhenStartup: value as bool?),
+      SettingsKeys.enableAutoClearImageCache => copyWith(enableAutoClearImageCache: value as bool?),
+      SettingsKeys.autoClearImageCacheDuration => copyWith(autoClearImageCacheDuration: value as int?),
+      SettingsKeys.collapseAppBarWhenScroll => copyWith(collapseAppBarWhenScroll: value as bool?),
+      SettingsKeys.threadFloorInteractionMode => copyWith(
+        threadFloorInteractionMode: value as ThreadFloorInteractionMode?,
+      ),
+      SettingsKeys.textScaleFactor => copyWith(textScaleFactor: value as double?),
     };
   }
 }

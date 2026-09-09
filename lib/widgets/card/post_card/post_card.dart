@@ -9,18 +9,22 @@ import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/extensions/date_time.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/features/post/models/models.dart';
+import 'package:tsdm_client/features/settings/bloc/settings_bloc.dart';
 import 'package:tsdm_client/features/thread/v1/bloc/thread_bloc.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/models/medal.dart';
 import 'package:tsdm_client/shared/models/models.dart';
+import 'package:tsdm_client/shared/models/thread_floor_interaction_mode.dart';
 import 'package:tsdm_client/utils/clipboard.dart';
 import 'package:tsdm_client/utils/html/html_muncher.dart';
+import 'package:tsdm_client/widgets/adaptive_ink_response.dart';
 import 'package:tsdm_client/widgets/card/lock_card/locked_card.dart';
 import 'package:tsdm_client/widgets/card/packet_card.dart';
 import 'package:tsdm_client/widgets/card/poll_card.dart';
 import 'package:tsdm_client/widgets/card/post_card/show_user_brief_profile_dialog.dart';
 import 'package:tsdm_client/widgets/card/rate_card.dart';
+import 'package:tsdm_client/widgets/copy_content_dialog.dart';
 import 'package:tsdm_client/widgets/heroes.dart';
 import 'package:universal_html/html.dart' as uh;
 import 'package:universal_html/parsing.dart';
@@ -58,6 +62,9 @@ enum _PostCardActions {
 
   /// Open the dialog to copy contents.
   openAndCopy,
+
+  /// Copy post id.
+  copyPid,
 }
 
 /// Card for a [Post] model.
@@ -95,29 +102,26 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
     final avatarHeroTag = 'Avatar-${widget.post.author.uid}-${widget.post.postFloor}';
     final nameHeroTag = 'Name-${widget.post.author.name}-${widget.post.postFloor}';
 
-    final knownMedals = context
-        .read<ThreadBloc>()
-        .state
-        .postMedals;
+    final knownMedals = context.read<ThreadBloc>().state.postMedals;
 
     final medals =
         widget.post.postMedals
             ?.map((userMedal) {
-          final foundMedal = knownMedals.firstWhereOrNull((e) => e.id == userMedal.menuItemId);
-          if (foundMedal == null) {
-            return null;
-          }
+              final foundMedal = knownMedals.firstWhereOrNull((e) => e.id == userMedal.menuItemId);
+              if (foundMedal == null) {
+                return null;
+              }
 
-          return Medal(
-            name: foundMedal.name,
-            description: foundMedal.description,
-            image: userMedal.image,
-            alter: userMedal.alter,
-          );
-        })
+              return Medal(
+                name: foundMedal.name,
+                description: foundMedal.description,
+                image: userMedal.image,
+                alter: userMedal.alter,
+              );
+            })
             .whereType<Medal>()
             .toList() ??
-            [];
+        [];
 
     return ListTile(
       leading: GestureDetector(
@@ -167,15 +171,9 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
             },
             child: Hero(
               tag: nameHeroTag,
-              flightShuttleBuilder:
-                  (_, __, ___, ____, toHeroContext) =>
-                  DefaultTextStyle(style: DefaultTextStyle
-                      .of(toHeroContext)
-                      .style, child: toHeroContext.widget),
-              child: Text(widget.post.author.name, style: TextStyle(color: Theme
-                  .of(context)
-                  .colorScheme
-                  .primary)),
+              flightShuttleBuilder: (_, _, _, _, toHeroContext) =>
+                  DefaultTextStyle(style: DefaultTextStyle.of(toHeroContext).style, child: toHeroContext.widget),
+              child: Text(widget.post.author.name, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
             ),
           ),
           sizedBoxW4H4,
@@ -183,14 +181,7 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
             Expanded(
               child: Text(
                 widget.post.userBriefProfile!.nickname!,
-                style: Theme
-                    .of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: Theme
-                    .of(context)
-                    .colorScheme
-                    .secondary),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.secondary),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
@@ -204,35 +195,19 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         children: [
           Text(
             widget.post.userBriefProfile?.userGroup ?? '',
-            style: Theme
-                .of(context)
-                .textTheme
-                .labelMedium
-                ?.copyWith(color: Theme
-                .of(context)
-                .colorScheme
-                .secondary),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Theme.of(context).colorScheme.secondary),
           ),
           sizedBoxW4H4,
           Text(
             '${widget.post.publishTime?.yyyyMMDDHHMMSS()}',
-            style: Theme
-                .of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: Theme
-                .of(context)
-                .colorScheme
-                .outline),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.outline),
           ),
         ],
       ),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: [if (widget.post.postFloor == null) const Text('#') else
-          Text('#${widget.post.postFloor}')
-        ],
+        children: [if (widget.post.postFloor == null) const Text('#') else Text('#${widget.post.postFloor}')],
       ),
     );
   }
@@ -242,234 +217,241 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
       padding: edgeInsetsL12T4R12,
       child: Text(
         context.t.postCard.lastEditInfo(username: widget.post.lastEditUsername!, time: widget.post.lastEditTime!),
-        style: Theme
-            .of(context)
-            .textTheme
-            .bodyMedium
-            ?.copyWith(color: Theme
-            .of(context)
-            .colorScheme
-            .outline),
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.outline),
       ),
     );
   }
 
   Widget _buildPostBody(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () async {
-        await widget.replyCallback?.call(widget.post.author, widget.post.postFloor, widget.post.replyAction);
-      },
-      child: Row(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: edgeInsetsL16R16,
-              child: munchElement(context, parseHtmlDocument(widget.post.data).body!),
-            ),
+    final interactionMode = context.read<SettingsBloc>().state.settingsMap.threadFloorInteractionMode;
+    final child = Row(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: edgeInsetsL16R16,
+            child: munchElement(context, parseHtmlDocument(widget.post.data).body!),
           ),
-        ],
-      ),
+        ),
+      ],
     );
+    return switch (interactionMode) {
+      ThreadFloorInteractionMode.adaptiveTapMenu => AdaptiveInkResponse(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        mouseCursor: MouseCursor.uncontrolled,
+        behavior: HitTestBehavior.opaque,
+        onAdaptiveContextTap: (tapPosition) async {
+          // Get the position where the tap occurred.
+          RelativeRect? position;
+          position = RelativeRect.fromRect(
+            tapPosition.globalPosition & Size.zero, // Rect from the tap position
+            Offset.zero & MediaQuery.of(context).size, // Bounding box for the menu
+          );
+          final choice = await showMenu<_PostCardActions>(
+            context: context,
+            position: position,
+            items: _buildContextMenuEntries(context),
+          );
+
+          if (choice == null || !context.mounted) {
+            return;
+          }
+
+          await _onContextMenuItemSelected(context, choice);
+        },
+        child: child,
+      ),
+      ThreadFloorInteractionMode.tapToReply => GestureDetector(
+        onTap: () async {
+          await widget.replyCallback?.call(widget.post.author, widget.post.postFloor, widget.post.replyAction);
+        },
+        child: child,
+      ),
+    };
   }
 
-  Widget _buildContextMenu(BuildContext context) {
+  List<PopupMenuEntry<_PostCardActions>> _buildContextMenuEntries(BuildContext context) {
     final threadBloc = context.readOrNull<ThreadBloc>();
     final onlyVisibleUid = threadBloc?.state.onlyVisibleUid;
 
-    return Row(
-      children: [
-        const Spacer(),
-        PopupMenuButton(
-          itemBuilder:
-              (context) =>
-          [
-            PopupMenuItem<_PostCardActions>(
-              enabled: false,
-              height: 32,
-              child: Text(
-                '${widget.post.author.name.truncate(10, ellipsis: true)} #${widget.post.postFloor}',
-                style: Theme
-                    .of(
-                  context,
-                )
-                    .textTheme
-                    .labelMedium
-                    ?.copyWith(color: Theme
-                    .of(context)
-                    .colorScheme
-                    .secondary),
-              ),
-            ),
-            PopupMenuItem(
-              value: _PostCardActions.reply,
-              child: Row(
-                children: [
-                  const Icon(Icons.reply_outlined),
-                  sizedBoxPopupMenuItemIconSpacing,
-                  Text(context.t.postCard.reply),
-                ],
-              ),
-            ),
-            if (widget.post.rateAction != null)
-              PopupMenuItem(
-                value: _PostCardActions.rate,
-                child: Row(
-                  children: [
-                    const Icon(Icons.rate_review_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.rate),
-                  ],
-                ),
-              ),
-
-            /// Viewing all authors, can switch to only view current
-            /// author mode.
-            if (threadBloc != null && onlyVisibleUid == null && widget.post.author.uid != null)
-              PopupMenuItem(
-                value: _PostCardActions.viewTheAuthor,
-                child: Row(
-                  children: [
-                    const Icon(Icons.person_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.onlyViewAuthor),
-                  ],
-                ),
-              ),
-
-            /// Viewing specified author now, can switch to view all
-            /// authors mode.
-            if (threadBloc != null && onlyVisibleUid != null)
-              PopupMenuItem(
-                value: _PostCardActions.viewAllAuthors,
-                child: Row(
-                  children: [
-                    const Icon(Icons.group_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.viewAllAuthors),
-                  ],
-                ),
-              ),
-            if (widget.post.editUrl != null)
-              PopupMenuItem(
-                value: _PostCardActions.edit,
-                child: Row(
-                  children: [
-                    const Icon(Icons.edit_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.edit),
-                  ],
-                ),
-              ),
-            if (widget.post.shareLink != null) ...[
-              PopupMenuItem(
-                value: _PostCardActions.share,
-                child: Row(
-                  children: [
-                    const Icon(Icons.share_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.share),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: _PostCardActions.openInBrowser,
-                child: Row(
-                  children: [
-                    const Icon(Icons.open_in_browser_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.openInBrowser),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: _PostCardActions.openAndCopy,
-                child: Row(
-                  children: [
-                    const Icon(Icons.copy_outlined),
-                    sizedBoxPopupMenuItemIconSpacing,
-                    Text(context.t.postCard.copyText),
-                  ],
-                ),
-              ),
-            ],
-          ],
-          onSelected: (value) async {
-            switch (value) {
-              case _PostCardActions.reply:
-                await widget.replyCallback?.call(widget.post.author, widget.post.postFloor, widget.post.replyAction);
-              case _PostCardActions.rate:
-                if (widget.post.rateAction != null) {
-                  await _rateCallback.call();
-                }
-              case _PostCardActions.viewTheAuthor:
-              // Here is guaranteed a not-null `ThreadBloc`.
-                context.read<ThreadBloc>().add(ThreadOnlyViewAuthorRequested(widget.post.author.uid!));
-              case _PostCardActions.viewAllAuthors:
-              // Here is guaranteed a not-null `ThreadBloc` and a
-              // not-null author uid.
-                context.read<ThreadBloc>().add(ThreadViewAllAuthorsRequested());
-              case _PostCardActions.edit:
-                final url = Uri.parse(widget.post.editUrl!);
-                final editType = widget.post.isDraft ? PostEditType.editDraft.index : PostEditType.editPost.index;
-                await context.pushNamed(
-                  ScreenPaths.editPost,
-                  pathParameters: {'editType': '$editType', 'fid': '${url.queryParameters["fid"]}'},
-                  queryParameters: {'tid': '${url.queryParameters["tid"]}', 'pid': '${url.queryParameters["pid"]}'},
-                );
-              case _PostCardActions.share:
-                await copyToClipboard(context, widget.post.shareLink!);
-              case _PostCardActions.openInBrowser:
-                await launchUrl(Uri.parse(widget.post.shareLink!), mode: LaunchMode.externalApplication);
-              case _PostCardActions.openAndCopy:
-                await showCopyContentMenu(context);
-            }
-          },
+    return [
+      PopupMenuItem<_PostCardActions>(
+        enabled: false,
+        height: 32,
+        child: Text(
+          '${widget.post.author.name.truncate(10, ellipsis: true)} #${widget.post.postFloor}',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: Theme.of(context).colorScheme.secondary),
         ),
-        sizedBoxW8H8,
+      ),
+      PopupMenuItem(
+        value: _PostCardActions.reply,
+        child: Row(
+          children: [
+            const Icon(Icons.reply_outlined),
+            sizedBoxPopupMenuItemIconSpacing,
+            Text(context.t.postCard.reply),
+          ],
+        ),
+      ),
+      if (widget.post.rateAction != null)
+        PopupMenuItem(
+          value: _PostCardActions.rate,
+          child: Row(
+            children: [
+              const Icon(Icons.rate_review_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.rate),
+            ],
+          ),
+        ),
+
+      /// Viewing all authors, can switch to only view current
+      /// author mode.
+      if (threadBloc != null && onlyVisibleUid == null && widget.post.author.uid != null)
+        PopupMenuItem(
+          value: _PostCardActions.viewTheAuthor,
+          child: Row(
+            children: [
+              const Icon(Icons.person_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.onlyViewAuthor),
+            ],
+          ),
+        ),
+
+      /// Viewing specified author now, can switch to view all
+      /// authors mode.
+      if (threadBloc != null && onlyVisibleUid != null)
+        PopupMenuItem(
+          value: _PostCardActions.viewAllAuthors,
+          child: Row(
+            children: [
+              const Icon(Icons.group_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.viewAllAuthors),
+            ],
+          ),
+        ),
+      if (widget.post.editUrl != null)
+        PopupMenuItem(
+          value: _PostCardActions.edit,
+          child: Row(
+            children: [
+              const Icon(Icons.edit_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.edit),
+            ],
+          ),
+        ),
+      if (widget.post.shareLink != null) ...[
+        PopupMenuItem(
+          value: _PostCardActions.share,
+          child: Row(
+            children: [
+              const Icon(Icons.share_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.share),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _PostCardActions.openInBrowser,
+          child: Row(
+            children: [
+              const Icon(Icons.open_in_browser_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.openInBrowser),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _PostCardActions.openAndCopy,
+          child: Row(
+            children: [
+              const Icon(Icons.copy_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.copyText),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _PostCardActions.copyPid,
+          child: Row(
+            children: [
+              const Icon(Icons.numbers_outlined),
+              sizedBoxPopupMenuItemIconSpacing,
+              Text(context.t.postCard.copyPid(pid: widget.post.postID)),
+            ],
+          ),
+        ),
       ],
-    );
+    ];
   }
 
-  Future<void> showCopyContentMenu(BuildContext context) async =>
-      showDialog<void>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            scrollable: true,
-            title: Text(context.t.postCard.copyText),
-            content: SelectableText(
-              parseHtmlDocument(widget.post.data).body?.childNodes
-                  .map(
-                    (e) =>
-                switch (e.nodeType) {
-                  uh.Node.TEXT_NODE => e.text!.trim(),
-                  uh.Node.ELEMENT_NODE =>
-                          () {
-                        final x = e as uh.Element;
-                        if (x.tagName.toLowerCase() == 'script') {
-                          return null;
-                        }
-                        return x.innerText.trim();
-                      }(),
-                  _ => null,
-                },
-              )
-                  .whereType<String>()
-                  .join() ??
-                  '',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(context.t.general.ok),
-              ),
-            ],
-          );
-        },
-      );
+  Future<void> _onContextMenuItemSelected(BuildContext context, _PostCardActions value) async {
+    switch (value) {
+      case _PostCardActions.reply:
+        await widget.replyCallback?.call(widget.post.author, widget.post.postFloor, widget.post.replyAction);
+      case _PostCardActions.rate:
+        if (widget.post.rateAction != null) {
+          await _rateCallback.call();
+        }
+      case _PostCardActions.viewTheAuthor:
+        // Here is guaranteed a not-null `ThreadBloc`.
+        context.read<ThreadBloc>().add(ThreadOnlyViewAuthorRequested(widget.post.author.uid!));
+      case _PostCardActions.viewAllAuthors:
+        // Here is guaranteed a not-null `ThreadBloc` and a
+        // not-null author uid.
+        context.read<ThreadBloc>().add(ThreadViewAllAuthorsRequested());
+      case _PostCardActions.edit:
+        final url = Uri.parse(widget.post.editUrl!);
+        final editType = widget.post.isDraft ? PostEditType.editDraft.index : PostEditType.editPost.index;
+        await context.pushNamed(
+          ScreenPaths.editPost,
+          pathParameters: {'editType': '$editType', 'fid': '${url.queryParameters["fid"]}'},
+          queryParameters: {'tid': '${url.queryParameters["tid"]}', 'pid': '${url.queryParameters["pid"]}'},
+        );
+      case _PostCardActions.share:
+        await copyToClipboard(context, widget.post.shareLink!);
+      case _PostCardActions.openInBrowser:
+        await launchUrl(Uri.parse(widget.post.shareLink!), mode: LaunchMode.externalApplication);
+      case _PostCardActions.openAndCopy:
+        final data =
+            parseHtmlDocument(widget.post.data).body?.childNodes
+                .map(
+                  (e) => switch (e.nodeType) {
+                    uh.Node.TEXT_NODE => e.text!.trim(),
+                    uh.Node.ELEMENT_NODE => () {
+                      final x = e as uh.Element;
+                      if (x.tagName.toLowerCase() == 'script') {
+                        return null;
+                      }
+                      return x.innerText.trim();
+                    }(),
+                    _ => null,
+                  },
+                )
+                .whereType<String>()
+                .join() ??
+            '';
+        await showCopySelectContentDialog(context: context, data: data);
+      case _PostCardActions.copyPid:
+        await copyToClipboard(context, widget.post.postID);
+    }
+  }
+
+  Widget _buildContextMenuRow(BuildContext context) => Row(
+    children: [
+      const Spacer(),
+      PopupMenuButton(
+        itemBuilder: _buildContextMenuEntries,
+        onSelected: (value) async => _onContextMenuItemSelected(context, value),
+      ),
+      sizedBoxW8H8,
+    ],
+  );
 
   // TODO: Handle better.
   // FIXME: Fix rebuild when interacting with widgets inside.
@@ -497,10 +479,13 @@ class _PostCardState extends State<PostCard> with AutomaticKeepAliveClientMixin 
         // Rate status if any.
         if (widget.post.rate != null) ...[
           sizedBoxW12H12,
-          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 712), child: RateCard(widget.post.rate!)),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 712),
+            child: RateCard(widget.post.rate!, widget.post.postID),
+          ),
         ],
         // Context menu.
-        _buildContextMenu(context),
+        _buildContextMenuRow(context),
       ],
     );
   }

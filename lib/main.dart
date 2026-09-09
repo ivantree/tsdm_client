@@ -14,6 +14,7 @@ import 'package:tsdm_client/features/settings/repositories/settings_repository.d
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/providers/providers.dart';
+import 'package:tsdm_client/shared/providers/proxy_provider/proxy_provider.dart';
 import 'package:tsdm_client/utils/platform.dart';
 import 'package:tsdm_client/utils/window_configs.dart';
 import 'package:window_manager/window_manager.dart';
@@ -23,9 +24,11 @@ Future<void> main(List<String> args) async => runZonedGuarded(() async => _boot(
 Future<void> _boot(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await initLogger();
+
   parseCmdArgs(args);
 
-  talker.debug('start app...');
+  talker.debug('------------------- start app -------------------');
   await initProviders();
 
   final settings = getIt.get<SettingsRepository>().currentSettings;
@@ -73,7 +76,11 @@ Future<void> _boot(List<String> args) async {
   flnp = FlutterLocalNotificationsPlugin();
   if (isAndroid) {
     await flnp.initialize(
-      const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
+      // Drawable ic_launcher_foreground_no_transform is shrunk when building in CI.
+      // The default one is compat but ok.
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@drawable/ic_launcher_foreground'),
+      ),
       onDidReceiveNotificationResponse: onLocalNotificationOpened,
     );
     if (autoSyncNoticeSeconds > 0) {
@@ -88,6 +95,11 @@ Future<void> _boot(List<String> args) async {
 
   // Check update when app startup.
   final checkUpdate = settings.enableUpdateCheckOnStartup;
+
+  // Only record system proxy settings if required to do so.
+  if (settings.useDetectedProxyWhenStartup) {
+    await getIt.get<ProxyProvider>().updateProxy();
+  }
 
   runApp(
     TranslationProvider(

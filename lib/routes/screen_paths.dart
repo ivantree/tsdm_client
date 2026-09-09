@@ -65,8 +65,20 @@ class ScreenPaths {
   /// Page to switch current user's user group.
   static const String switchUserGroup = '/switchUserGroup';
 
+  /// Page to switch current user's title.
+  static const String switchTitle = '/switchTitle';
+
+  /// Page to edit current user's profile.
+  static const String editUserProfile = '/editUserProfile';
+
   /// App settings page.
   static const settings = NestedPath._('/settings');
+
+  /// App settings page with root navigator key.
+  ///
+  /// Due to https://github.com/flutter/flutter/issues/140586 it's impossible to navigate to another page outside the
+  /// shell route, copy a root route level page as workaround.
+  static const rootSettings = '/rootSettings';
 
   /// Settings page for thread card appearance.
   static const settingsThreadAppearance = NestedPath._('threadAppearance', settings);
@@ -175,6 +187,23 @@ class ScreenPaths {
   /// Page to rate a post in thread.
   static const String ratePost = '/ratePost/:username/:pid/:floor/:rateAction';
 
+  /// Page showing all rate log for a specified post.
+  ///
+  /// Post id and thread id are required.
+  static const String rateLog = '/rateLog/:tid/:pid';
+
+  /// Page to view and edit fast rate templates.
+  static const String fastRateTemplate = '/fastRateTemplate/:pick';
+
+  /// Page to edit fast rate templates.
+  static const String fastRateTemplateEdit = '/fastRateTemplateEdit/:editType';
+
+  /// Page to view and edit fast reply templates.
+  static const String fastReplyTemplate = '/fastReplyTemplate/:pick';
+
+  /// Page to edit fast reply templates.
+  static const String fastReplyTemplateEdit = '/fastReplyTemplateEdit/:editType';
+
   /// The page to show current logged user's points statistics status
   /// and changelog.
   ///
@@ -204,6 +233,12 @@ class ScreenPaths {
   /// Page to show logs for debugging.
   static const String debugLog = '/debugLog';
 
+  /// Page to show all historical logs for debugging.
+  static const String debugHistoricalLog = '/historicalLog';
+
+  /// Page to show detail of historical log.
+  static const String debugHistoricalLogDetail = '/historicalLogDetail';
+
   /// Page to show packet statistics detail info of a thread.
   static const String packetDetail = '/packetDetail/:tid';
 
@@ -212,6 +247,107 @@ class ScreenPaths {
 
   /// Page to get app updates.
   static const String update = '/update';
+
+  /// Page to show the changelog bundled with app.
+  static const String localChangelog = '/localChangelog';
+
+  /// Page to open any supported forum resources in app.
+  static const String openInApp = '/openInApp';
+}
+
+/// Route paths for all temporary dialogs and bottom sheets in app.
+///
+/// These paths are used for tracking current locations with dialog routes support.
+/// All dialogs shall specify these paths with wrapped `RootPage`.
+class DialogPaths {
+  const DialogPaths._();
+
+  /// Dialog to select language.
+  static const String selectLanguage = '/dialog/selectLanguage';
+
+  /// Dialog to pick image.
+  static const String imagePicker = '/dialog/imagePicker';
+
+  /// Dialog to pick url.
+  static const String urlPicker = '/dialog/urlPicker';
+
+  /// Dialog to pick username.
+  static const String usernamePicker = '/dialog/usernamePicker';
+
+  /// Dialog to show image detail.
+  static const String imageDetail = '/dialog/imageDetail';
+
+  /// Dialog to manage logged user.
+  static const String manageUser = '/dialog/manageUser';
+
+  /// Dialog to let user input thread price.
+  static const String inputPrice = '/dialog/inputThreadPrice';
+
+  /// Dialog to let user select thread read perm.
+  static const String selectPerm = '/dialog/selectPerm';
+
+  /// Dialog to let user select reason why rate the post.
+  static const String selectRateReason = '/dialog/selectRateReason';
+
+  /// Dialog to notice user that newer version is available.
+  static const String updateNotice = '/dialog/updateNotice';
+
+  /// Dialog to let user select all pages in thread could jump to.
+  static const String jumpPage = '/dialog/jumpPage';
+
+  /// Dialog to let user picker a font.
+  static const String fontPicker = '/dialog/fontPicker';
+
+  /// Dialog to let user picker a text scale factor.
+  static const String textScalePicker = '/dialog/textScalePicker';
+
+  /// Dialog to let user select the duration between auto syncing notice events.
+  static const String selectAutoSyncDuration = '/dialog/selectAutoSyncDuration';
+
+  /// Dialog to let user select checkin feeling.
+  static const String selectCheckinFeeling = '/dialog/selectCheckinFeeling';
+
+  /// Dialog to let user select checkin message.
+  static const String selectCheckinMessage = '/dialog/selectCheckinMessage';
+
+  /// Dialog to let user manage proxy settings.
+  static const String setupProxy = '/dialog/setupProxy';
+
+  /// Dialog to show thread operation log.
+  static const String showOperationLog = '/dialog/showOperationLog';
+
+  /// Dialog to show thread sales history log.
+  static const String showThreadSalesHistory = '/dialog/showThreadSalesHistory';
+
+  /// Common dialog to show message with only one button in action.
+  static const String messageSingleButton = '/dialog/messageSingleButton';
+
+  /// Common dialog to show question.
+  static const String question = '/dialog/question';
+
+  /// Dialog to let user copy contents.
+  static const String copyContent = '/dialog/copyContent';
+
+  /// Bottom sheet to let user pick color.
+  static const String colorPicker = '/dialog/colorPicker';
+
+  /// Bottom sheet to let user pick emoji.
+  static const String emojiPicker = '/dialog/emojiPicker';
+
+  /// Bottom sheet provide options to clear cache.
+  static const String clearCache = '/dialog/clearCache';
+
+  /// Dialog to select the duration consider an image cache as outdated.
+  static const String autoClearImageCacheDuration = '/dialog/autoClearImageDialogDuration';
+
+  /// Dialog to show help message of thread card.
+  static const String threadCardHelp = '/dialog/threadCardHelp';
+
+  /// Dialog to let user select the interaction mode on thread floors.
+  static const String selectThreadFloorInteractionMode = '/dialog/selectThreadFloorInteractionMode';
+
+  /// Dialog to edit user profile.
+  static const String editUserProfile = '/dialog/editUserProfile';
 }
 
 /// Route path for a screen.

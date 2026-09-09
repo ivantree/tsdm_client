@@ -8,6 +8,7 @@ import 'package:tsdm_client/features/thread_visit_history/widgets/thread_visit_h
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/tips.dart';
 
 /// Page of thread visit history.
@@ -29,7 +30,7 @@ class _ThreadVisitHistoryPageState extends State<ThreadVisitHistoryPage> {
         builder: (context, state) {
           final body = switch (state.status) {
             ThreadVisitHistoryStatus.initial ||
-            ThreadVisitHistoryStatus.loadingData => const Center(child: CircularProgressIndicator()),
+            ThreadVisitHistoryStatus.loadingData => const CenteredCircularIndicator(),
             ThreadVisitHistoryStatus.savingData || ThreadVisitHistoryStatus.success => _Body(state.history),
             ThreadVisitHistoryStatus.failure => buildRetryButton(
               context,
@@ -39,7 +40,9 @@ class _ThreadVisitHistoryPageState extends State<ThreadVisitHistoryPage> {
 
           return Scaffold(
             appBar: AppBar(title: Text(tr.title), bottom: Tips(tr.localOnlyTip, sizePreferred: true)),
-            body: SafeArea(child: AnimatedSwitcher(duration: duration200, child: body)),
+            body: SafeArea(
+              child: AnimatedSwitcher(duration: duration200, child: body),
+            ),
           );
         },
       ),
@@ -88,7 +91,7 @@ class _BodyState extends State<_Body> {
           itemBuilder: (context, index) {
             return ThreadVisitHistoryCard(widget.models[index]);
           },
-          separatorBuilder: (_, __) => sizedBoxW4H4,
+          separatorBuilder: (_, _) => sizedBoxW4H4,
         );
       },
     );

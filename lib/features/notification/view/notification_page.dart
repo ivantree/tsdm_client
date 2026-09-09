@@ -13,6 +13,7 @@ import 'package:tsdm_client/shared/models/notification_type.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/widgets/card/notice_card_v2.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 
 enum _Actions { markAllNoticeAsRead, markAllPersonalMessageAsRead, markAllBroadcastMessageAsRead }
 
@@ -34,27 +35,21 @@ class _NotificationPageState extends State<NotificationPage> with SingleTickerPr
   /// Flag indicating only show unread messages or not
   bool onlyShowUnread = false;
 
-  Widget _buildEmptyBody(BuildContext context) {
+  Widget _buildEmptyBody(ScrollPhysics physics) {
     return Align(
       child: LayoutBuilder(
-        builder:
-            (context, constraints) => SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: MediaQuery.sizeOf(context).width,
-                  minHeight: constraints.maxHeight,
-                ),
-                child: Center(
-                  child: Text(
-                    context.t.general.noData,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.outline),
-                  ),
-                ),
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: physics,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: MediaQuery.sizeOf(context).width, minHeight: constraints.maxHeight),
+            child: Center(
+              child: Text(
+                context.t.general.noData,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.outline),
               ),
             ),
+          ),
+        ),
       ),
     );
   }
@@ -105,8 +100,7 @@ class _NotificationPageState extends State<NotificationPage> with SingleTickerPr
           };
 
           final body = switch (state.status) {
-            NotificationStatus.initial ||
-            NotificationStatus.loading => const Center(child: CircularProgressIndicator()),
+            NotificationStatus.initial || NotificationStatus.loading => const CenteredCircularIndicator(),
             NotificationStatus.success => TabBarView(
               controller: _tabController,
               children: [
@@ -114,49 +108,50 @@ class _NotificationPageState extends State<NotificationPage> with SingleTickerPr
                   controller: _noticeRefreshController,
                   header: const MaterialHeader(),
                   onRefresh: () => context.read<NotificationBloc>().add(NotificationUpdateAllRequested()),
-                  childBuilder:
-                      (context, physics) =>
-                          n.isEmpty
-                              ? _buildEmptyBody(context)
-                              : ListView.separated(
-                                physics: physics,
-                                padding: edgeInsetsL12T4R12.add(context.safePadding()),
-                                itemCount: n.length,
-                                itemBuilder: (_, idx) => NoticeCardV2(n.elementAt(idx)),
-                                separatorBuilder: (_, __) => sizedBoxW4H4,
-                              ),
+                  childBuilder: (context, physics) => n.isEmpty
+                      ? _buildEmptyBody(physics)
+                      : ListView.separated(
+                          physics: physics,
+                          padding: edgeInsetsL12T4R12.add(context.safePadding()),
+                          itemCount: n.length,
+                          itemBuilder: (_, idx) =>
+                              NoticeCardV2(key: ValueKey('NOTICE_${n.elementAt(idx).id}'), n.elementAt(idx)),
+                          separatorBuilder: (_, _) => sizedBoxW4H4,
+                        ),
                 ),
                 EasyRefresh.builder(
                   controller: _personalMessageRefreshController,
                   header: const MaterialHeader(),
                   onRefresh: () => context.read<NotificationBloc>().add(NotificationUpdateAllRequested()),
-                  childBuilder:
-                      (context, physics) =>
-                          pm.isEmpty
-                              ? _buildEmptyBody(context)
-                              : ListView.separated(
-                                physics: physics,
-                                padding: edgeInsetsL12T4R12.add(context.safePadding()),
-                                itemCount: pm.length,
-                                itemBuilder: (_, idx) => PersonalMessageCardV2(pm.elementAt(idx)),
-                                separatorBuilder: (_, __) => sizedBoxW4H4,
-                              ),
+                  childBuilder: (context, physics) => pm.isEmpty
+                      ? _buildEmptyBody(physics)
+                      : ListView.separated(
+                          physics: physics,
+                          padding: edgeInsetsL12T4R12.add(context.safePadding()),
+                          itemCount: pm.length,
+                          itemBuilder: (_, idx) => PersonalMessageCardV2(
+                            key: ValueKey('PM_${pm.elementAt(idx).timestamp}'),
+                            pm.elementAt(idx),
+                          ),
+                          separatorBuilder: (_, _) => sizedBoxW4H4,
+                        ),
                 ),
                 EasyRefresh.builder(
                   controller: _broadcastMessageRefreshController,
                   header: const MaterialHeader(),
                   onRefresh: () => context.read<NotificationBloc>().add(NotificationUpdateAllRequested()),
-                  childBuilder:
-                      (context, physics) =>
-                          bm.isEmpty
-                              ? _buildEmptyBody(context)
-                              : ListView.separated(
-                                physics: physics,
-                                padding: edgeInsetsL12T4R12.add(context.safePadding()),
-                                itemCount: bm.length,
-                                itemBuilder: (_, idx) => BroadcastMessageCardV2(bm.elementAt(idx)),
-                                separatorBuilder: (_, __) => sizedBoxW4H4,
-                              ),
+                  childBuilder: (context, physics) => bm.isEmpty
+                      ? _buildEmptyBody(physics)
+                      : ListView.separated(
+                          physics: physics,
+                          padding: edgeInsetsL12T4R12.add(context.safePadding()),
+                          itemCount: bm.length,
+                          itemBuilder: (_, idx) => BroadcastMessageCardV2(
+                            key: ValueKey('BM_${bm.elementAt(idx).timestamp}'),
+                            bm.elementAt(idx),
+                          ),
+                          separatorBuilder: (_, _) => sizedBoxW4H4,
+                        ),
                 ),
               ],
             ),
@@ -183,39 +178,38 @@ class _NotificationPageState extends State<NotificationPage> with SingleTickerPr
                 //   onPressed: () => context.pushNamed(ScreenPaths.noticeSearch),
                 // ),
                 PopupMenuButton<_Actions>(
-                  itemBuilder:
-                      (_) => [
-                        PopupMenuItem(
-                          value: _Actions.markAllNoticeAsRead,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.notifications_paused_outlined),
-                              sizedBoxPopupMenuItemIconSpacing,
-                              Text(tr.cardMenu.markAllNoticeAsRead),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: _Actions.markAllPersonalMessageAsRead,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.notifications_active_outlined),
-                              sizedBoxPopupMenuItemIconSpacing,
-                              Text(tr.cardMenu.markAllPersonalMessageAsRead),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: _Actions.markAllBroadcastMessageAsRead,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.notification_important_outlined),
-                              sizedBoxPopupMenuItemIconSpacing,
-                              Text(tr.cardMenu.markAllBroadcastMessageAsRead),
-                            ],
-                          ),
-                        ),
-                      ],
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: _Actions.markAllNoticeAsRead,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_paused_outlined),
+                          sizedBoxPopupMenuItemIconSpacing,
+                          Text(tr.cardMenu.markAllNoticeAsRead),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _Actions.markAllPersonalMessageAsRead,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notifications_active_outlined),
+                          sizedBoxPopupMenuItemIconSpacing,
+                          Text(tr.cardMenu.markAllPersonalMessageAsRead),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: _Actions.markAllBroadcastMessageAsRead,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.notification_important_outlined),
+                          sizedBoxPopupMenuItemIconSpacing,
+                          Text(tr.cardMenu.markAllBroadcastMessageAsRead),
+                        ],
+                      ),
+                    ),
+                  ],
                   onSelected: (value) async {
                     final noticeType = switch (value) {
                       _Actions.markAllNoticeAsRead => NotificationType.notice,

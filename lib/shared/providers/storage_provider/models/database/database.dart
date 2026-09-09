@@ -28,10 +28,10 @@ part 'database.g.dart';
 )
 final class AppDatabase extends _$AppDatabase with LoggerMixin {
   /// Constructor.
-  AppDatabase(super.executor);
+  AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -72,6 +72,10 @@ final class AppDatabase extends _$AppDatabase with LoggerMixin {
           updates: {schema.notice},
           updateKind: UpdateKind.delete,
         );
+        // We are using table migration for old versions.
+        // If in a far future the `TableMigration` API is removed, we may also
+        // drop support for versions < 1.2.0
+        // ignore: experimental_member_use
         await m.alterTable(TableMigration(schema.notice));
         info('migrating database schema from 4 to 5... ok!');
       },
@@ -94,6 +98,10 @@ final class AppDatabase extends _$AppDatabase with LoggerMixin {
           updates: {schema.personalMessage},
           updateKind: UpdateKind.delete,
         );
+        // We are using table migration for old versions.
+        // If in a far future the `TableMigration` API is removed, we may also
+        // drop support for versions < 1.2.0
+        // ignore: experimental_member_use
         await m.alterTable(TableMigration(schema.personalMessage));
         // Migrate personal message table.
         await m.addColumn(schema.broadcastMessage, schema.broadcastMessage.alreadyRead);
@@ -111,6 +119,33 @@ final class AppDatabase extends _$AppDatabase with LoggerMixin {
         await m.create(schema.fastRateTemplate);
         await m.create(schema.fastReplyTemplate);
         info('migrating database schema from 7 to 8... ok!');
+      },
+      from8To9: (m, schema) async {
+        info('migrating database schema from 8 to 9...');
+        await m.addColumn(schema.settings, schema.settings.stringListValue);
+        await m.addColumn(schema.settings, schema.settings.intListValue);
+        info('migrating database schema from 8 to 9... ok!');
+      },
+      from9To10: (m, schema) async {
+        info('migrating database schema from 9 to 10...');
+        // Add user identification columns.
+        await m.addColumn(schema.cookie, schema.cookie.password);
+        await m.addColumn(schema.cookie, schema.cookie.questionId);
+        await m.addColumn(schema.cookie, schema.cookie.answer);
+
+        // Recreate template tables.
+        // In fact we shall remove uid column and change the primary key in this migration, but these tables were not
+        // used before, drop and recreate is safe.
+        await m.drop(schema.fastRateTemplate);
+        await m.create(schema.fastRateTemplate);
+        await m.drop(schema.fastReplyTemplate);
+        await m.create(schema.fastReplyTemplate);
+        info('migrating database schema from 9 to 10... ok!');
+      },
+      from10To11: (m, schema) async {
+        info('migrating database schema from 10 to 11...');
+        await m.addColumn(schema.fastRateTemplate, schema.fastRateTemplate.special2);
+        info('migrating database schema from 10 to 11... ok!');
       },
     ),
   );

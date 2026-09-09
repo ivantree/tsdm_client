@@ -9,6 +9,7 @@ import 'package:tsdm_client/features/points/models/models.dart';
 import 'package:tsdm_client/features/points/repository/model/models.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/utils/show_bottom_sheet.dart';
+import 'package:tsdm_client/widgets/selectable_list_tile.dart';
 
 /// Form to make the user points changelog query filter.
 ///
@@ -55,9 +56,9 @@ final class _PointsQueryFormState extends State<PointsQueryForm> {
       childrenBuilder: (context) {
         return widget.allParameters.extTypeList
             .map(
-              (e) => ListTile(
+              (e) => SelectableListTile(
                 title: Text(e.name),
-                trailing: e == pointsType ? const Icon(Icons.check_outlined) : null,
+                selected: e == pointsType,
                 onTap: () {
                   setState(() {
                     pointsType = e;
@@ -79,9 +80,9 @@ final class _PointsQueryFormState extends State<PointsQueryForm> {
       childrenBuilder: (context) {
         return widget.allParameters.operationTypeList
             .map(
-              (e) => ListTile(
+              (e) => SelectableListTile(
                 title: Text(e.name),
-                trailing: e == operationType ? const Icon(Icons.check_outlined) : null,
+                selected: e == operationType,
                 onTap: () {
                   setState(() {
                     operationType = e;
@@ -102,9 +103,9 @@ final class _PointsQueryFormState extends State<PointsQueryForm> {
       childrenBuilder: (context) {
         return widget.allParameters.changeTypeList
             .map(
-              (e) => ListTile(
+              (e) => SelectableListTile(
                 title: Text(e.name),
-                trailing: e == changeType ? const Icon(Icons.check_outlined) : null,
+                selected: e == changeType,
                 onTap: () {
                   setState(() {
                     changeType = e;
@@ -136,19 +137,18 @@ final class _PointsQueryFormState extends State<PointsQueryForm> {
   List<Widget> _buildContent(BuildContext context, PointsChangelogState state) {
     VoidCallback? queryCallback;
     if (pointsType != null && operationType != null && changeType != null && state.status != PointsStatus.loading) {
-      queryCallback =
-          () => context.read<PointsChangelogBloc>().add(
-            PointsChangelogQueryRequested(
-              ChangelogParameter(
-                extType: pointsType!.extType,
-                operation: operationType!.operation,
-                changeType: changeType!.changeType,
-                startTime: startTime,
-                endTime: endTime,
-                pageNumber: 1,
-              ),
-            ),
-          );
+      queryCallback = () => context.read<PointsChangelogBloc>().add(
+        PointsChangelogQueryRequested(
+          ChangelogParameter(
+            extType: pointsType!.extType,
+            operation: operationType!.operation,
+            changeType: changeType!.changeType,
+            startTime: startTime,
+            endTime: endTime,
+            pageNumber: 1,
+          ),
+        ),
+      );
     }
 
     return [
@@ -207,7 +207,9 @@ final class _PointsQueryFormState extends State<PointsQueryForm> {
       ),
       Row(
         children: [
-          Expanded(child: FilledButton(onPressed: queryCallback, child: Text(context.t.pointsPage.changelogTab.query))),
+          Expanded(
+            child: FilledButton(onPressed: queryCallback, child: Text(context.t.pointsPage.changelogTab.query)),
+          ),
         ],
       ),
     ];
@@ -237,8 +239,12 @@ final class _PointsQueryFormState extends State<PointsQueryForm> {
                 Text(context.t.pointsPage.changelogTab.query, style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 IconButton(
-                  icon:
-                      showQueryFilter ? const Icon(Icons.expand_less_outlined) : const Icon(Icons.expand_more_outlined),
+                  icon: showQueryFilter
+                      ? const Icon(Icons.expand_less_outlined)
+                      : const Icon(Icons.expand_more_outlined),
+                  tooltip: showQueryFilter
+                      ? context.t.pointsPage.changelogTab.hideFilterTip
+                      : context.t.pointsPage.changelogTab.showFilterTip,
                   onPressed: () {
                     setState(() {
                       showQueryFilter = !showQueryFilter;

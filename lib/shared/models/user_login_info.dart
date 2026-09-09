@@ -14,11 +14,7 @@ part of 'models.dart';
 )
 final class UserLoginInfo with UserLoginInfoMappable {
   /// Constructor.
-  const UserLoginInfo({
-    required this.username,
-    required this.uid,
-    // required this.email,
-  });
+  const UserLoginInfo({required this.username, required this.uid, this.email});
 
   /// Build a empty instance, all fields are null or default.
   factory UserLoginInfo.empty() => const UserLoginInfo(username: null, uid: null);
@@ -29,23 +25,23 @@ final class UserLoginInfo with UserLoginInfoMappable {
   /// User id.
   final int? uid;
 
-  // /// User email.
-  // final String? email;
+  /// User email.
+  final String? email;
 
   /// Check if info is completed.
-  bool get isComplete => username != null && uid != null /* && email != null*/;
+  bool get isComplete => username != null && uid != null;
 
   /// Check if all fields in user info is empty.
   ///
   /// Usually in some wrong state where we lost user info.
-  bool get isEmpty => username == null && uid == null /* && email == null*/;
+  bool get isEmpty => username == null && uid == null && (email == null || email!.isEmpty);
 
   @override
   String toString() {
     // Do NOT print detail.
     return 'UserLoginInfo{ '
         'username=${username?.obscured()}, '
-        'uid=${uid == null ? "null" : "$uid".obscured(4)}, ';
-    //'email=${email?.obscured()}}';
+        'uid=${uid == null ? "null" : "$uid".obscured(4)}, '
+        'email=${email?.obscured()}}';
   }
 }

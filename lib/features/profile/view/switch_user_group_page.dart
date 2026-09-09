@@ -10,6 +10,7 @@ import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/utils/show_dialog.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/section_list_tile.dart';
 import 'package:tsdm_client/widgets/section_title_text.dart';
 
@@ -31,13 +32,17 @@ class _SwitchUserGroupPageState extends State<SwitchUserGroupPage> with LoggerMi
     return ListView(
       children: [
         SectionTitleText(tr.currentGroup),
-        SectionListTile(title: Text(state.currentUserGroup, style: bodyTheme?.copyWith(color: colorScheme.secondary))),
+        SectionListTile(
+          title: Text(state.currentUserGroup, style: bodyTheme?.copyWith(color: colorScheme.secondary)),
+        ),
         if (state.status == SwitchUserGroupStatus.switching)
           Row(children: [SectionTitleText(tr.availableGroups), sizedCircularProgressIndicator])
         else
           SectionTitleText(tr.availableGroups),
         if (state.availableGroups.isEmpty)
-          SectionListTile(title: Text(tr.nonAvailable, style: bodyTheme?.copyWith(color: colorScheme.outline)))
+          SectionListTile(
+            title: Text(tr.nonAvailable, style: bodyTheme?.copyWith(color: colorScheme.outline)),
+          )
         else
           ...state.availableGroups.map(
             (e) => SectionListTile(
@@ -75,7 +80,10 @@ class _SwitchUserGroupPageState extends State<SwitchUserGroupPage> with LoggerMi
           final tr = context.t.switchUserGroupPage;
           if (state.status == SwitchUserGroupStatus.success) {
             if (state.destination != null) {
-              showSnackBar(context: context, message: tr.switchSucceeded(to: state.destination!));
+              showSnackBar(
+                context: context,
+                message: tr.switchSucceeded(to: state.destination!),
+              );
             } else {
               warning('switch user group succeeded but the destination null. Did you forget to set it?');
             }
@@ -86,8 +94,7 @@ class _SwitchUserGroupPageState extends State<SwitchUserGroupPage> with LoggerMi
           final tr = context.t.switchUserGroupPage;
 
           final body = switch (state.status) {
-            SwitchUserGroupStatus.initial ||
-            SwitchUserGroupStatus.loadingInfo => const Center(child: CircularProgressIndicator()),
+            SwitchUserGroupStatus.initial || SwitchUserGroupStatus.loadingInfo => const CenteredCircularIndicator(),
             SwitchUserGroupStatus.waitingSwitchAction ||
             SwitchUserGroupStatus.switching ||
             SwitchUserGroupStatus.success => _buildContent(context, state),
@@ -97,7 +104,10 @@ class _SwitchUserGroupPageState extends State<SwitchUserGroupPage> with LoggerMi
               message: tr.switchFailed,
             ),
           };
-          return Scaffold(appBar: AppBar(title: Text(tr.title)), body: SafeArea(bottom: false, child: body));
+          return Scaffold(
+            appBar: AppBar(title: Text(tr.title)),
+            body: SafeArea(bottom: false, child: body),
+          );
         },
       ),
     );

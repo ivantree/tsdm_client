@@ -11,6 +11,7 @@ import 'package:tsdm_client/shared/repositories/forum_home_repository/forum_home
 import 'package:tsdm_client/shared/repositories/fragments_repository/fragments_repository.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/widgets/card/forum_card.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 
 /// App topic page.
 ///
@@ -55,17 +56,16 @@ class _TopicsPageState extends State<TopicsPage> with SingleTickerProviderStateM
       vsync: this,
     )..addListener(_updateIndexListener!);
 
-    final groupTabBodyList =
-        forumGroupList
-            .map(
-              (e) => ListView.separated(
-                padding: edgeInsetsL12T4R12,
-                itemCount: e.forumList.length,
-                itemBuilder: (context, index) => ForumCard(e.forumList[index]),
-                separatorBuilder: (context, index) => sizedBoxW4H4,
-              ),
-            )
-            .toList();
+    final groupTabBodyList = forumGroupList
+        .map(
+          (e) => ListView.separated(
+            padding: edgeInsetsL12T4R12,
+            itemCount: e.forumList.length,
+            itemBuilder: (context, index) => ForumCard(e.forumList[index]),
+            separatorBuilder: (context, index) => sizedBoxW4H4,
+          ),
+        )
+        .toList();
 
     _refreshController.finishRefresh();
 
@@ -95,10 +95,9 @@ class _TopicsPageState extends State<TopicsPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create:
-          (_) =>
-              TopicsBloc(forumHomeRepository: RepositoryProvider.of<ForumHomeRepository>(context))
-                ..add(TopicsLoadRequested()),
+      create: (_) =>
+          TopicsBloc(forumHomeRepository: RepositoryProvider.of<ForumHomeRepository>(context))
+            ..add(TopicsLoadRequested()),
       child: BlocBuilder<TopicsBloc, TopicsState>(
         builder: (context, state) {
           final body = switch (state.status) {
@@ -106,7 +105,7 @@ class _TopicsPageState extends State<TopicsPage> with SingleTickerProviderStateM
               key: const ValueKey('loading'),
               controller: _refreshController,
               header: const MaterialHeader(),
-              child: const Center(child: CircularProgressIndicator()),
+              child: const CenteredCircularIndicator(),
             ),
             TopicsStatus.failed => buildRetryButton(context, () {
               context.read<TopicsBloc>().add(TopicsRefreshRequested());
@@ -149,7 +148,11 @@ class _TopicsPageState extends State<TopicsPage> with SingleTickerProviderStateM
               // Some server enforced situation.
               bottom: state.forumGroupList.isNotEmpty ? tabBar : null,
             ),
-            body: SafeArea(left: false, top: false, child: AnimatedSwitcher(duration: duration200, child: body)),
+            body: SafeArea(
+              left: false,
+              top: false,
+              child: AnimatedSwitcher(duration: duration200, child: body),
+            ),
           );
         },
       ),

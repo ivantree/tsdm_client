@@ -4,13 +4,16 @@ import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/extensions/list.dart';
 import 'package:tsdm_client/features/jump_page/widgets/jump_page_dialog.dart';
-import 'package:tsdm_client/features/parse_url/widgets/parse_url_dialog.dart';
+import 'package:tsdm_client/features/open_in_app/view/open_in_app_page.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/features/search/bloc/search_bloc.dart';
 import 'package:tsdm_client/features/search/repository/search_repository.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/widgets/card/thread_card/thread_card.dart';
 import 'package:tsdm_client/widgets/debounce_buttons.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 
 /// Page of search, including a form to fill search parameters and search
 /// results.
@@ -103,12 +106,11 @@ class _SearchPageState extends State<SearchPage> with LoggerMixin {
 
     context.read<SearchBloc>().add(SearchRequested(keyword: keyword, uid: authorUid, fid: fid, pageNumer: page));
 
-    setState(() {
-      // Only return to top when attached (not the first search).
-      if (scrollController.hasClients) {
-        scrollController.animateTo(0, curve: Curves.ease, duration: const Duration(microseconds: 500));
-      }
-    });
+    // Only return to top when attached (not the first search).
+    if (scrollController.hasClients) {
+      await scrollController.animateTo(0, curve: Curves.ease, duration: const Duration(microseconds: 500));
+      setState(() {});
+    }
   }
 
   /// Search with given keyword, authorUid and fid, return the [page] index
@@ -166,9 +168,10 @@ class _SearchPageState extends State<SearchPage> with LoggerMixin {
   Future<void> _gotoSpecifiedPage(BuildContext context, SearchState state) async {
     final page = await showDialog<int>(
       context: context,
-      builder:
-          (context) =>
-              JumpPageDialog(min: 1, current: state.searchResult!.currentPage, max: state.searchResult!.totalPages),
+      builder: (context) => RootPage(
+        DialogPaths.jumpPage,
+        JumpPageDialog(min: 1, current: state.searchResult!.currentPage, max: state.searchResult!.totalPages),
+      ),
     );
     if (page == null || page == state.searchResult!.currentPage) {
       return;
@@ -340,12 +343,11 @@ class _SearchPageState extends State<SearchPage> with LoggerMixin {
           onPressed: !searching && _hasPreviousPage(state) ? () async => _searchPreviousPage(context, state) : null,
         ),
         TextButton(
-          onPressed:
-              !searching && (_hasPreviousPage(state) || _hasNextPage(state)) && state.searchResult != null
-                  ? () async {
-                    await _gotoSpecifiedPage(context, state);
-                  }
-                  : null,
+          onPressed: !searching && (_hasPreviousPage(state) || _hasNextPage(state)) && state.searchResult != null
+              ? () async {
+                  await _gotoSpecifiedPage(context, state);
+                }
+              : null,
           child: Text('${state.searchResult?.currentPage ?? "-"}'),
         ),
         IconButton(
@@ -358,7 +360,7 @@ class _SearchPageState extends State<SearchPage> with LoggerMixin {
 
   Widget _buildSearchResult(BuildContext context, SearchState state) {
     if (state.status.isSearching()) {
-      return const Expanded(child: Center(child: CircularProgressIndicator()));
+      return const Expanded(child: CenteredCircularIndicator());
     } else if (state.searchResult?.data?.isEmpty ?? true) {
       return Expanded(child: Center(child: Text(context.t.searchPage.result.noData)));
     }
@@ -406,7 +408,7 @@ class _SearchPageState extends State<SearchPage> with LoggerMixin {
             appBar: AppBar(
               title: Text(context.t.searchPage.title),
               actions: [
-                const ParseUrlDialogButton(),
+                const OpenInAppPageButton(),
                 IconButton(
                   icon: Icon(expandForm ? Icons.expand_less : Icons.expand_more),
                   onPressed: () {

@@ -5,6 +5,7 @@ import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/utils/logger.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 import 'package:tsdm_client/widgets/heroes.dart';
 import 'package:tsdm_client/widgets/single_line_text.dart';
 
@@ -44,7 +45,7 @@ class UserOperationDialog extends StatelessWidget with LoggerMixin {
 
     final tr = context.t.homepage.welcome;
 
-    return AlertDialog(
+    return CustomAlertDialog.sync(
       title: Row(
         children: [
           HeroUserAvatar(username: username, avatarUrl: avatarUrl, heroTag: username, minRadius: 30),
@@ -52,7 +53,6 @@ class UserOperationDialog extends StatelessWidget with LoggerMixin {
           Expanded(child: SingleLineText(username, style: Theme.of(context).textTheme.titleLarge)),
         ],
       ),
-      scrollable: true,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -79,22 +79,21 @@ class UserOperationDialog extends StatelessWidget with LoggerMixin {
           ),
           ListTile(
             title: Text(tr.latestThread),
-            onTap:
-                latestThreadUrl == null
-                    ? null
-                    : () async {
-                      final target = latestThreadUrl!.parseUrlToRoute();
-                      if (target == null) {
-                        error('invalid kahrpba link: $latestThreadUrl');
-                        return;
-                      }
-                      context.pop();
-                      await context.pushNamed(
-                        target.screenPath,
-                        pathParameters: target.pathParameters,
-                        queryParameters: target.queryParameters,
-                      );
-                    },
+            onTap: latestThreadUrl == null
+                ? null
+                : () async {
+                    final target = latestThreadUrl!.parseUrlToRoute();
+                    if (target == null) {
+                      error('invalid kahrpba link: $latestThreadUrl');
+                      return;
+                    }
+                    context.pop();
+                    await context.pushNamed(
+                      target.screenPath,
+                      pathParameters: target.pathParameters,
+                      queryParameters: target.queryParameters,
+                    );
+                  },
           ),
         ],
       ),

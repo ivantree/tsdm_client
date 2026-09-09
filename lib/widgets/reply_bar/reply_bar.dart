@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:chat_bottom_container/chat_bottom_container.dart';
+import 'package:dart_bbcode_parser/dart_bbcode_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bbcode_editor/flutter_bbcode_editor.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,7 +13,12 @@ import 'package:tsdm_client/features/authentication/repository/models/models.dar
 import 'package:tsdm_client/features/chat/models/models.dart';
 import 'package:tsdm_client/features/editor/widgets/rich_editor.dart';
 import 'package:tsdm_client/features/editor/widgets/toolbar.dart';
+import 'package:tsdm_client/features/root/models/models.dart';
+import 'package:tsdm_client/features/root/stream/root_location_stream.dart';
+import 'package:tsdm_client/features/settings/repositories/settings_repository.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/instance.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/utils/platform.dart';
@@ -88,21 +94,22 @@ class _ReplyBarWrapperState extends State<ReplyBar> {
 
     final c = showBottomSheet(
       context: context,
-      builder:
-          (_) => _ReplyBar(
-            controller: widget.controller,
-            outerTextController: controller,
-            replyType: widget.replyType,
-            chatHistorySendTarget: widget.chatHistorySendTarget,
-            chatSendTarget: widget.chatSendTarget,
-            disabledEditorFeatures: widget.disabledEditorFeatures,
-            fullScreenDisabledEditorFeatures: widget.fullScreenDisabledEditorFeatures,
-            fullScreen: widget.fullScreen,
-          ),
+      builder: (_) => _ReplyBar(
+        controller: widget.controller,
+        outerTextController: controller,
+        replyType: widget.replyType,
+        chatHistorySendTarget: widget.chatHistorySendTarget,
+        chatSendTarget: widget.chatSendTarget,
+        disabledEditorFeatures: widget.disabledEditorFeatures,
+        fullScreenDisabledEditorFeatures: widget.fullScreenDisabledEditorFeatures,
+        fullScreen: widget.fullScreen,
+      ),
     );
 
+    rootLocationStream.add(const RootLocationEventEnter('<editor>'));
     widget.controller._showingEditor = true;
     await c.closed;
+    rootLocationStream.add(const RootLocationEventLeave('<editor>'));
     widget.controller._showingEditor = false;
   }
 
@@ -489,7 +496,11 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
         children: [
           Text(_hintText!, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: outlineColor)),
           const Spacer(),
-          IconButton(icon: Icon(Icons.clear_outlined, color: outlineColor, size: 16), onPressed: _clearTextAndHint),
+          IconButton(
+            icon: Icon(Icons.clear_outlined, color: outlineColor, size: 16),
+            tooltip: context.t.replyBar.notReplyToFloorTip,
+            onPressed: _clearTextAndHint,
+          ),
         ],
       ),
     );
@@ -564,6 +575,8 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
   }
 
   Widget _buildContent(BuildContext context, ReplyState state) {
+    final tr = context.t.replyBar;
+
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -578,12 +591,12 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
               onPointerUp:
                   // Only collapse editor toolbar on mobile platforms.
                   isMobile
-                      ? (_) {
-                        setState(() {
-                          fullScreen = false;
-                        });
-                      }
-                      : null,
+                  ? (_) {
+                      setState(() {
+                        fullScreen = false;
+                      });
+                    }
+                  : null,
               child: _buildRichEditor(context),
             ),
           ),
@@ -598,9 +611,10 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
               // For desktop, always expand the toolbar.
               if (isMobile)
                 IconButton(
-                  icon: const Icon(Icons.expand),
+                  icon: const Icon(Icons.expand_outlined),
                   selectedIcon: Icon(Icons.expand_outlined, color: Theme.of(context).primaryColor),
                   isSelected: fullScreen,
+                  tooltip: fullScreen ? tr.collapseToolbarTip : tr.expandToolbarTip,
                   onPressed: () {
                     setState(() {
                       fullScreen = !fullScreen;
@@ -612,13 +626,32 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
                     }
                   },
                 ),
+              IconButton(
+                icon: const Icon(Icons.quickreply_outlined),
+                tooltip: context.t.fastReplyTemplate.title,
+                onPressed: () async {
+                  final pickResult = await context.pushNamed<FastReplyTemplateModel>(
+                    ScreenPaths.fastReplyTemplate,
+                    pathParameters: {'pick': 'true'},
+                  );
+
+                  if (!context.mounted) {
+                    return;
+                  }
+                  if (pickResult != null) {
+                    _replyRichController.insertBBCode(pickResult.data);
+                  }
+                  focusNode.requestFocus();
+                },
+              ),
               const Spacer(),
               FilledButton.tonal(onPressed: () => context.pop(), child: const Icon(Icons.unfold_less)),
               sizedBoxW8H8,
               // Send Button
               FilledButton(
-                onPressed:
-                    (canSendReply && !isSendingReply && !_closed && _hasLogin) ? () async => _sendMessage() : null,
+                onPressed: (canSendReply && !isSendingReply && !_closed && _hasLogin)
+                    ? () async => _sendMessage()
+                    : null,
                 child: isSendingReply ? sizedCircularProgressIndicator : const Icon(Icons.send),
               ),
             ],
@@ -640,7 +673,16 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
     widget.controller._bind = this;
     final authRepo = context.read<AuthenticationRepository>();
     _hasLogin = authRepo.currentUser != null;
-    _replyRichController = buildBBCodeEditorController(initialText: widget.outerTextController.text);
+    final parserEnabled = getIt.get<SettingsRepository>().currentSettings.enableEditorBBCodeParser;
+    if (parserEnabled) {
+      // FIXME: CAUTION! This initial delta parsing step may cause ui jank.
+      // TODO: Save the quill delta outside and apply it here to avoid losing styles that not supported by bbcode parser.
+      _replyRichController = buildBBCodeEditorController(
+        initialDelta: parseBBCodeTextToDelta(widget.outerTextController.text),
+      );
+    } else {
+      _replyRichController = buildBBCodeEditorController(initialText: widget.outerTextController.text);
+    }
     _replyRichController.addListener(_checkEditorContent);
     _authStatusSub = authRepo.status.listen((status) {
       setState(() {
@@ -654,7 +696,7 @@ final class _ReplyBarState extends State<_ReplyBar> with LoggerMixin {
   @override
   void dispose() {
     _replyFocusNode.dispose();
-    _authStatusSub.cancel();
+    unawaited(_authStatusSub.cancel());
     final text = _replyRichController.toBBCode();
     if (_canSyncBBCodeOnDispose) {
       // Only save text that intend to reply when that text is not empty.

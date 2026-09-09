@@ -5,6 +5,7 @@ import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/fp.dart';
 import 'package:tsdm_client/features/thread/v1/models/models.dart';
+import 'package:tsdm_client/features/thread/v1/repository/discuz_dsign_decoder.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/providers/net_client_provider/net_client_provider.dart';
 import 'package:universal_html/html.dart' as uh;
@@ -25,6 +26,18 @@ class ThreadRepository {
   String _buildOperationUrl(String tid) =>
       '$baseUrl/forum.php?mod=misc&action=viewthreadmod&tid=$tid'
       '&infloat=yes&handlekey=viewthreadmod&inajax=1&ajaxtarget=fwin_content_viewthreadmod';
+
+  static bool _isUsableThreadDocument(uh.Document document) {
+    if (document.querySelector('div#messagetext, div#messagelogin') != null) {
+      return true;
+    }
+
+    return document
+        .querySelectorAll('div#postlist div[id^="post_"]')
+        .any((post) => post.querySelector('[id^="postmessage_"]') != null);
+  }
+
+  static String _buildAlternateHostUrl(String url) => Uri.parse(url).replace(host: baseHostAlt).toString();
 
   /// Fetch the thread page with [tid] on page [pageNumber].
   ///
@@ -75,18 +88,68 @@ class ThreadRepository {
       _threadUrl = '$baseUrl/forum.php?mod=redirect&goto=findpost&pid=$pid';
     }
 
-    final respEither = await getIt.get<NetClientProvider>().get(_threadUrl!).run();
-    if (respEither.isLeft()) {
-      return left(respEither.unwrapErr());
+    final netClient = getIt.get<NetClientProvider>();
+    final requestUrls = [
+      _threadUrl!,
+      _buildAlternateHostUrl(_threadUrl!),
+      _threadUrl!,
+      _buildAlternateHostUrl(_threadUrl!),
+    ];
+    AppException? lastError;
+
+    for (final requestUrl in requestUrls) {
+      final respEither = await netClient.get(requestUrl).run();
+      if (respEither.isLeft()) {
+        lastError = respEither.unwrapErr();
+        continue;
+      }
+
+      final resp = respEither.unwrap();
+      if (resp.statusCode != HttpStatus.ok) {
+        lastError = HttpRequestFailedException(resp.statusCode);
+        continue;
+      }
+
+      final html = resp.data as String;
+      final document = parseHtmlDocument(html);
+      if (_isUsableThreadDocument(document)) {
+        return right(document);
+      }
+
+      String? signedPath;
+      for (final script in document.querySelectorAll('script')) {
+        signedPath = decodeDiscuzDsignRedirect(script.text ?? '');
+        if (signedPath != null) {
+          break;
+        }
+      }
+      final signedRedirect = signedPath;
+      if (signedRedirect != null) {
+        final signedUri = Uri.parse(requestUrl).resolve(signedRedirect);
+        final dsign = signedUri.queryParameters['_dsign'];
+        if ((signedUri.host == baseHost || signedUri.host == baseHostAlt) && dsign != null && dsign.isNotEmpty) {
+          final signedRespEither = await netClient.getUri(signedUri).run();
+          if (signedRespEither.isLeft()) {
+            lastError = signedRespEither.unwrapErr();
+            continue;
+          }
+
+          final signedResp = signedRespEither.unwrap();
+          if (signedResp.statusCode != HttpStatus.ok) {
+            lastError = HttpRequestFailedException(signedResp.statusCode);
+            continue;
+          }
+
+          final signedDocument = parseHtmlDocument(signedResp.data as String);
+          if (_isUsableThreadDocument(signedDocument)) {
+            return right(signedDocument);
+          }
+        }
+      }
+      lastError = HttpRequestFailedException(HttpStatus.serviceUnavailable);
     }
 
-    final resp = respEither.unwrap();
-    if (resp.statusCode != HttpStatus.ok) {
-      return left(HttpRequestFailedException(resp.statusCode));
-    }
-
-    final document = parseHtmlDocument(resp.data as String);
-    return right(document);
+    return left(lastError ?? HttpRequestFailedException(null));
   });
 
   /// Fetch the operation log for thread [tid].
@@ -99,8 +162,11 @@ class ThreadRepository {
         }
 
         final doc = parseHtmlDocument(htmlData);
-        final items =
-            doc.querySelectorAll('table tr').map(OperationLogItem.fromTr).whereType<OperationLogItem>().toList();
+        final items = doc
+            .querySelectorAll('table tr')
+            .map(OperationLogItem.fromTr)
+            .whereType<OperationLogItem>()
+            .toList();
         return items;
       });
 }

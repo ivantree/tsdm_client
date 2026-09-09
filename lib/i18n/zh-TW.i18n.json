@@ -22,7 +22,10 @@
     "minutes": "${value: int} 分鐘",
     "hours": "${value: int} 小時",
     "days": "${value: int} 天",
-    "now": "剛剛"
+    "now": "剛剛",
+    "settings": "設定",
+    "openInBrowser": "在瀏覽器中開啟",
+    "close": "關閉"
   },
   "navigation": {
     "homepage": "首頁",
@@ -42,7 +45,8 @@
       "checkin": "簽到",
       "myThread": "我的貼文",
       "latestThread": "最新貼文"
-    }
+    },
+    "showMoreUserOperationsTip": "顯示更多使用者操作"
   },
   "topicPage": {
     "title": "分割區",
@@ -103,6 +107,50 @@
           "view": "103000",
           "lastReplyAuthor": "桐ヶ谷和人",
           "threadType": "白日夢"
+        },
+        "showHelpTip": "查看貼文卡片內容的意思",
+        "attrs": {
+          "help": "圖示的意義",
+          "closed": {
+            "title": "已關閉",
+            "detail": "貼文已關閉，無法回覆"
+          },
+          "upVoted": {
+            "title": "評分加分",
+            "detail": "貼文由使用者評分加分"
+          },
+          "pictureAttached": {
+            "title": "附帶圖片",
+            "detail": "貼文裡有圖片附件"
+          },
+          "digested": {
+            "title": "精華",
+            "detail": "貼文已加精"
+          },
+          "pinnedGlobally": {
+            "title": "全域置頂",
+            "detail": "在論壇全域置頂"
+          },
+          "pinnedInType": {
+            "title": "分類置頂",
+            "detail": "在目前貼文分類中置頂"
+          },
+          "pinnedInSubreddit": {
+            "title": "本版置頂",
+            "detail": "在目前版塊中置頂"
+          },
+          "vote": {
+            "title": "投票",
+            "detail": "含投票內容"
+          },
+          "rewarded": {
+            "title": "懸賞",
+            "detail": "含有懸賞內容"
+          },
+          "draft": {
+            "title": "草稿",
+            "detail": "貼文處於草稿狀態，仍未發佈"
+          }
         }
       },
       "unreadNoticeBadge": "未讀取提醒小圓點",
@@ -112,6 +160,10 @@
       "fontFamily": {
         "title": "字體",
         "dialogTitle": "選擇字體"
+      },
+      "textScaleFactor": {
+        "title": "文字縮放",
+        "dialogTitle": "文字縮放係數"
       }
     },
     "windowSection": {
@@ -132,10 +184,6 @@
     },
     "behaviorSection": {
       "title": "行為",
-      "doublePressExit": {
-        "title": "按兩下返回才退出應用",
-        "detail": "避免意外退出app"
-      },
       "threadReverseOrder": {
         "title": "倒序瀏覽貼文",
         "detail": "貼文裡優先看到最新發布的樓層"
@@ -145,8 +193,21 @@
         "detail": "每隔一段時間，自動從伺服器同步訊息和提醒"
       },
       "editorBBCodeParser": {
-        "title": "啟用BBCode parser（實驗性）",
-        "detail": "啟用後，在編輯貼文時也會所見即所得"
+        "title": "啟用BBCode parser",
+        "tip": {
+          "title": "BBCode parser是什麼",
+          "detail": "以下場景中BBCode parser會將純文字的BBCode轉換為所見即所得的內容以供編輯:\n\n1. 編輯已發布的帖子\n2. 編輯回复模板\n3. 插入回复模板\n4. 展開帖子和聊天頁面底部的編輯框\n\n關閉BBCode parse後在編輯時將使用純文本，遇到問題時可將其關閉"
+        }
+      },
+      "collapseAppBarWhenScroll": {
+        "title": "滑動時收起AppBar",
+        "detail": "分割區與貼文頁面中收起"
+      },
+      "threadFloorInteractionMode": {
+        "title": "貼文樓層互動方式",
+        "detail": "點擊貼文頁面中的樓層時如何回應",
+        "adaptiveTapOpenContextMenu": "長按或右鍵時開啟選單",
+        "tapToReply": "點擊樓層時將目前樓層設為回覆目標"
       }
     },
     "checkinSection": {
@@ -165,8 +226,24 @@
       "downloadAgainInfo": "必要的快取檔案將會再次從伺服器下載",
       "images": "圖片",
       "emoji": "表情",
+      "log": "日誌",
       "selectOneCache": "需要至少選擇一項快取",
-      "clearSuccess": "清除成功"
+      "clearSuccess": "清除成功",
+      "scheduledCleaning": {
+        "title": "自動清理圖片",
+        "details": "應用程式啟動時刪除太久未使用的圖片快取",
+        "duration": {
+          "title": "自動清理圖片間隔",
+          "detail": "如果圖片快取上次被使用的時間距離現在的時間超過這個時長，則會在自動清理時清除",
+          "6h": "6小時",
+          "12h": "12小時",
+          "1d": "1天",
+          "3days": "3天",
+          "7days": "7天",
+          "15days": "15天",
+          "30days": "30天"
+        }
+      }
     },
     "advancedSection": {
       "title": "高級",
@@ -184,7 +261,12 @@
           "testing": "測試中。。。",
           "connected": "代理正在運行",
           "disconnected": "代理程式可能未執行"
-        }
+        },
+        "useDetectProxy": {
+          "title": "自動偵測代理",
+          "detail": "使用應用程式啟動時偵測到的代理程式設定"
+        },
+        "automatedOnPlatform": "在本平台上代理設定會自動設定"
       },
       "exportData": "匯出資料",
       "importData": {
@@ -207,6 +289,11 @@
       "viewLog": {
         "title": "查看日誌"
       },
+      "viewHistoryLog": {
+        "title": "查看歷史日誌",
+        "historicalLogs": "歷史日誌",
+        "export": "匯出"
+      },
       "copyDatabaseDir": "複製資料庫路徑"
     },
     "othersSection": {
@@ -228,7 +315,8 @@
     "version": "軟體版本",
     "flutterVersion": "Flutter版本",
     "dartVersion": "Dart版本",
-    "license": "版權"
+    "license": "版權",
+    "copyEnvironmentInfo": "複製環境資訊"
   },
   "loginPage": {
     "title": "登入天使動漫",
@@ -369,7 +457,8 @@
     },
     "tooltip": {
       "fab": "發佈新帖"
-    }
+    },
+    "copyFid": "複製fid（${fid: String}）"
   },
   "threadPage": {
     "title": "貼文",
@@ -384,7 +473,17 @@
       "title": "操作記錄"
     },
     "softCloseHint": "帖子已关闭，回复前请注意",
-    "statistics": "${view: int} 查看 ${reply: int} 回覆"
+    "statistics": "${view: int} 查看 ${reply: int} 回覆",
+    "threadInfo": {
+      "title": "貼文訊息",
+      "threadTitle": "標題",
+      "threadID": "ID",
+      "threadUrl": "連結",
+      "threadUrlWithDomain": "連結（有網域）",
+      "threadUrlBBCode": "連結BBCode",
+      "threadUrlBBCodeWithDomain": "連結BBCode（有網域）"
+    },
+    "copyTid": "複製tid（${tid: String}）"
   },
   "noticePage": {
     "title": "通知",
@@ -487,7 +586,8 @@
     "unknownAllowedRange": "無效的評分區間 $range",
     "onlyAllowIntegers": "只允許整數",
     "failedToRate": "评分失败",
-    "scoreTodayRemaining": "今日剩餘 $score"
+    "scoreTodayRemaining": "今日剩餘 $score",
+    "fillWithTemplate": "使用模板填滿"
   },
   "pointsPage": {
     "title": "積分統計",
@@ -501,7 +601,9 @@
       "changeType": "收支",
       "operationType": "操作類型",
       "dateRange": "日期範圍",
-      "query": "查詢"
+      "query": "查詢",
+      "showFilterTip": "顯示篩選條件",
+      "hideFilterTip": "隱藏篩選條件"
     }
   },
   "postEditPage": {
@@ -543,6 +645,19 @@
     "whyTitleDialog": {
       "title": "為什麼這有個標題？",
       "detail": "如果在發布新帖子或編輯帖子一樓，有個標題很正常。\n但實際上其他樓層也都有個“標題”，可以在樓層正文之前加些<h2>樣式的文字"
+    },
+    "portation": {
+      "title": "匯入與匯出",
+      "tip": "請注意，貼上和匯入會覆寫目前正在編輯的內容以及貼文的附加選項（如果有）",
+      "typesTip": "BBCode格式只保存正文；Quill Delta既保存正文也保存帖子的設定",
+      "copyBBCode": "複製BBCode",
+      "pasteBBCode": "貼上BBCode",
+      "exportBBCode": "匯出BBCode",
+      "importBBCode": "導入BBCode",
+      "copyQuilllDelta": "複製Quill Delta",
+      "pasteQuillDelta": "貼上Quill Delta",
+      "exportQuillDelta": "導出Quill Delta",
+      "importQuillDelta": "導入Quill Delta"
     }
   },
   "chatHistoryPage": {
@@ -557,18 +672,21 @@
     "success": "發送成功",
     "failed": "發送失敗：$message",
     "online": "[線上]",
-    "offline": "[離線]"
+    "offline": "[離線]",
+    "viewUserSpaceTip": "查看使用者資料",
+    "viewChatHistoryTip": "查看歷史聊天"
   },
   "imageDetailPage": {
     "title": "圖片詳情",
     "statistics": "詳細資料",
     "failedToLoadWithReason": "無法載入圖片: ${reason: String}",
     "failedToLoad": "無法載入圖片",
-    "url": "Url：${url: String}",
-    "size": "圖片大小：${width: int} x ${height: int}",
-    "cacheName": "快取名稱：${name: String}",
-    "cacheSize": "快取大小：${size: String}",
-    "usage": "用途: ${usage: String}"
+    "url": "Url",
+    "sizeTitle": "圖片大小",
+    "sizeValue": "${width: int} x ${height: int}",
+    "cacheName": "快取名稱",
+    "cacheSize": "快取大小",
+    "usage": "用途"
   },
   "forumCard": {
     "links": "連結",
@@ -628,12 +746,22 @@
     "blocked": {
       "title": "內容被屏蔽",
       "detail": "此樓層已被管理員或版主封鎖"
+    },
+    "sale": {
+      "title": "已有內容出售",
+      "detail": "價格： ${price: String} tsb。\n已有 ${count: String} 人購買。",
+      "viewLog": "查看出售記錄",
+      "dialog": {
+        "title": "出售記錄",
+        "price": "${price: String} tsb"
+      }
     }
   },
   "rateCard": {
     "title": "評分記錄（$userCount）",
     "total": "總計: $total",
-    "user": "使用者"
+    "user": "使用者",
+    "viewAll": "查看全部評分"
   },
   "jumpDialog": {
     "title": "跳到頁面"
@@ -665,7 +793,8 @@
         "title": "自訂",
         "colorValue": "顏色",
         "invalidColor": "無效的顏色",
-        "formatTip": "輸入顏色的名字（例如darkorange、DarkOrange）或hex形式的顏色數值（例如f0c、ff00cc、14d084）"
+        "formatTip": "輸入顏色的名字（例如darkorange、DarkOrange）或hex形式的顏色數值（例如f0c、ff00cc、14d084）",
+        "recentColor": "最近使用"
       }
     }
   },
@@ -719,14 +848,16 @@
     },
     "share": "複製分享連結",
     "openInBrowser": "在瀏覽器中開啟",
-    "copyText": "複製文字"
+    "copyText": "複製文字",
+    "copyPid": "複製pid（${pid: String}）"
   },
   "packetCard": {
     "title": "紅包",
     "detail": "你找到一個紅包了！",
     "open": "開啟",
     "failedToOpen": "打開失敗",
-    "allTakenAway": "红包都領完了"
+    "allTakenAway": "红包都領完了",
+    "viewReceiveHistory": "查看領取記錄"
   },
   "bountyCard": {
     "title": "懸賞",
@@ -741,6 +872,11 @@
     "experimentalInfo": "實驗性bbcode編輯器",
     "experimentalInfoTitle": "實驗性bbcode編輯器",
     "experimentalInfoDetail": "此bbcode編輯器支援所見即所得，可以方便地添加文字樣式和其他bbcode元件。\n但處於實驗階段：已經經過測試，但可能有bug。",
+    "expandToolbar": "展開工具列",
+    "collapsedToolbar": "收起工具列",
+    "toolbar": "工具列",
+    "additionalOptions": "附加選項",
+    "readPerm": "讀取權限",
     "emoji": {
       "title": "表情",
       "downloading": "正在下載表情（大約10MB內容），這可能需要一些時間。。",
@@ -752,7 +888,8 @@
       "link": "連結",
       "errorEmpty": "不能為空",
       "autoPaste": {
-        "tip": "貼上b站分享連結",
+        "action": "貼上b站分享連結",
+        "tip": "查看自動貼上功能的提示",
         "detail": "從剪貼簿貼上b站分享連結。\n格式為【影片名稱】 https://www.bilibili.com/BV號或AV號"
       }
     },
@@ -782,7 +919,9 @@
       "visitUserSpace": "存取TA的主頁",
       "search": "搜尋",
       "searchResult": "結果",
-      "randomFriend": "隨機好友"
+      "randomFriend": "隨機好友",
+      "viewUserSpaceTip": "檢視使用者資料",
+      "refreshRecommendTip": "刷新推薦好友"
     }
   },
   "imageBottomSheet": {
@@ -790,7 +929,10 @@
     "checkDetail": "看詳情",
     "copyImageUrl": "複製圖片連結",
     "reloadImage": "重新載入圖片",
-    "openLink": "開啟連結"
+    "openLink": "開啟連結",
+    "saveImage": "儲存圖片",
+    "imageSaved": "圖片已儲存至 ${filePath: String}",
+    "failedToSaveImage": "無法儲存圖片"
   },
   "init": {
     "v1DeleteLegacyData": {
@@ -812,12 +954,39 @@
     "title": "貼文瀏覽紀錄",
     "localOnlyTip": "僅記錄本機的瀏覽記錄，在網頁端或其他機器上可能會有所不同"
   },
-  "parseUrlDialog": {
-    "title": "在應用程式中開啟連結",
-    "detail": "輸入一個本應用程式支援的論壇頁面鏈接，在應用程式內打開它",
-    "entryTooltip": "在應用程式中開啟連結",
-    "url": "連結",
-    "unsupportedUrl": "不支援的連結",
+  "openInAppPage": {
+    "title": "開啟頁面",
+    "entryTooltip": "在應用程式中開啟頁面",
+    "url": {
+      "title": "連結",
+      "detail": "輸入一個本應用程式支援的論壇頁面鏈接，在應用程式內打開它",
+      "unsupportedUrl": "不支援的連結"
+    },
+    "uid": {
+      "title": "用戶id（uid）",
+      "detail": "查看使用者資料。許多地方可在使用者資料頁等找到uid",
+      "invalidUid": "無效的uid"
+    },
+    "username": {
+      "title": "使用者名稱",
+      "detail": "查看使用者資料。可在使用者資料頁等許多地方找到使用者名稱",
+      "invalidUsername": "無效使用者名稱"
+    },
+    "fid": {
+      "title": "分區id（fid）",
+      "detail": "前往指定分割區。可在分割頁面和分割區網頁連結中找到fid",
+      "invalidFid": "無效的fid"
+    },
+    "tid": {
+      "title": "帖子id（tid）",
+      "detail": "開啟指定貼文。可在貼文頁面和貼文分享連結中找到tid",
+      "invalidTid": "無效的tid"
+    },
+    "pid": {
+      "title": "樓層id（pid）",
+      "detail": "查看指定貼文樓層。可在樓層的分享連結中找到pid",
+      "invalidPid": "無效的pid"
+    },
     "open": "開啟"
   },
   "globalStatePage": {
@@ -856,7 +1025,12 @@
   },
   "packetDetailPage": {
     "title": "紅包詳情",
-    "statistics": "在 ${time: String} 中有 ${users: int} 名用戶獲得共 ${coins: int} 個天使幣"
+    "statistics": "在 ${time: String} 中有 ${users: int} 名用戶獲得共 ${coins: int} 個天使幣",
+    "sort": {
+      "sortByMostCoins": "依tsb由多到少排序",
+      "sortByLeastCoins": "依tsb由少到多排序",
+      "sortByTime": "按時間排序"
+    }
   },
   "pollCard": {
     "title": "投票",
@@ -930,7 +1104,154 @@
       "tr": "天然 ${value: String}",
       "fh": "腹黑 ${value: String}",
       "jl": "精灵 ${value: String}",
-      "specialAttr": "特殊积分 ${value: String}"
+      "specialAttr": "特殊积分 ${value: String}",
+      "specialAttr2": "特殊积分2 ${value: String}"
     }
+  },
+  "fastRateTemplate": {
+    "title": "評分範本",
+    "details": "評分時可用來填入分數數值的範本",
+    "choose": "選擇一個模板，將數值填入",
+    "name": "範本名稱",
+    "ww": "威望",
+    "tsb": "天使幣",
+    "xc": "宣傳",
+    "jl": "精靈",
+    "tr": "天然",
+    "fh": "腹黑",
+    "special": "特殊積分",
+    "special2": "特殊積分2",
+    "new": "新範本",
+    "empty": "沒有可用的評分範本",
+    "delete": "刪除評分範本",
+    "edit": "編輯範本",
+    "pick": "選擇模板",
+    "deleteConfirm(rich)": "確定要刪除評分範本「${name: String}」？此操作不可被撤銷",
+    "editPageTitle": "新評分範本",
+    "editPageAlreadyExists": "同名的評分範本已存在",
+    "editPageOverride": "覆蓋同名的評分範本",
+    "editPageTemplateAdded": "評分範本已儲存",
+    "editPage": {
+      "nameNotEmpty": "名稱不能為空白",
+      "invalidValue": "無效的數值"
+    }
+  },
+  "fastReplyTemplate": {
+    "title": "回覆模板",
+    "details": "回覆時可以使用的範本",
+    "choose": "選擇一個模板，填滿內容",
+    "name": "範本名稱",
+    "content": "內容",
+    "empty": "沒有可用的回覆範本",
+    "delete": "刪除回應模板",
+    "edit": "編輯範本",
+    "pick": "選擇模板",
+    "deleteConfirm(rich)": "確定要刪除回覆範本「${name: String}」？此動作無法撤銷",
+    "editPageTitle": "新建回應範本",
+    "editPageAlreadyExists": "已存在同名的回覆範本",
+    "editPageOverride": "覆蓋同名的回覆模板",
+    "editPageTemplateAdded": "回覆範本已儲存",
+    "editPageNameNotEmpty": "名稱不能為空白",
+    "editPageSaveTemplate": "儲存範本"
+  },
+  "copyDialog": {
+    "copyTitle": "複製內容",
+    "copySelectTitle": "選擇與複製",
+    "copyAll": "複製全部",
+    "share": "分享",
+    "close": "关闭"
+  },
+  "copyButton": {
+    "copyTip": "複製",
+    "copied": "已複製"
+  },
+  "rateLogPage": {
+    "title": "評分紀錄",
+    "tabs": {
+      "accumulated": "累加後",
+      "original": "原資料"
+    },
+    "total": "總分",
+    "showTotalRatePointsTip": "顯示總分"
+  },
+  "replyBar": {
+    "notReplyToFloorTip": "不回覆該樓層（改為回覆樓主）",
+    "expandToolbarTip": "展開工具列",
+    "collapseToolbarTip": "收起工具列"
+  },
+  "workaroundRedirect": "查看對話",
+  "threadCard": {
+    "viewInfo": "查看貼文資訊"
+  },
+  "myTitlesPage": {
+    "title": "我的頭銜",
+    "current": "使用中",
+    "unset": "摘下",
+    "openTitleShop": "訪問頭銜商店（在瀏覽器中）",
+    "noneActivated": "目前尚未啟動任何頭銜",
+    "activated": "使用中：${name: String}"
+  },
+  "editUserProfilePage": {
+    "title": "編輯資料",
+    "save": "儲存資料",
+    "saveSuccess": "保存成功",
+    "saveFailed": "儲存失敗",
+    "visibility": {
+      "title": "隱私",
+      "public": "公開",
+      "friendsOnly": "僅好友可見",
+      "private": "保密"
+    },
+    "username": "使用者名稱",
+    "gender": {
+      "title": "性別",
+      "male": "男",
+      "female": "女",
+      "hide": "保密"
+    },
+    "birthday": {
+      "title": "生日",
+      "year": "年",
+      "month": "月",
+      "day": "日"
+    },
+    "qq": {
+      "title": "QQ",
+      "invalidQQ": "無效的qq號碼"
+    },
+    "msn": "MSN",
+    "homepage": "首頁",
+    "bio": "自我介紹",
+    "hobby": "興趣愛好",
+    "location": "來自",
+    "nickname": "暱稱",
+    "wordsToSay": "最想說的話",
+    "skills": "技能",
+    "favoriteBangumi": "最喜歡的動漫",
+    "pageStyle": {
+      "title": "網頁風格",
+      "tip": "對app無影響"
+    },
+    "customTitle": "自訂頭銜",
+    "signature": "個人簽名",
+    "timezone": "時區"
+  },
+  "urlInfoBottomSheet": {
+    "title": "連結訊息",
+    "recognizeResult": "辨識結果",
+    "target": "這個連結導航至：",
+    "urlTypes": {
+      "external": {
+        "title": "外部連結",
+        "detail": "天使動漫以外的網站。透過這個連結會離開天使動漫"
+      },
+      "internal": {
+        "title": "內部連結",
+        "detail": "天使動漫內部網頁"
+      }
+    },
+    "copyUrl": "複製連結",
+    "open": "開啟",
+    "openInBrowser": "在瀏覽器中開啟"
   }
 }

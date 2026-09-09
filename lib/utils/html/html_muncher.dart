@@ -4,47 +4,39 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:tsdm_client/constants/constants.dart';
 import 'package:tsdm_client/constants/layout.dart';
+import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/extensions/universal_html.dart';
+import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/utils/html/adaptive_color.dart';
 import 'package:tsdm_client/utils/html/css_parser.dart';
 import 'package:tsdm_client/utils/html/munch_options.dart';
-
 // Netease card
 import 'package:tsdm_client/utils/html/netease_card.dart';
-
 // Newcomer card
 import 'package:tsdm_client/utils/html/newcomer_report_card.dart';
-
 // Table
 import 'package:tsdm_client/utils/html/table_width.dart';
 import 'package:tsdm_client/utils/html/types.dart';
 import 'package:tsdm_client/utils/logger.dart';
+import 'package:tsdm_client/utils/platform.dart';
 import 'package:tsdm_client/utils/show_bottom_sheet.dart';
-
 // Bounty answer card
 import 'package:tsdm_client/widgets/card/bounty_answer_card.dart';
-
 // Bounty card
 import 'package:tsdm_client/widgets/card/bounty_card.dart';
-
 // Code card
 import 'package:tsdm_client/widgets/card/code_card.dart';
-
 // Locked card
 import 'package:tsdm_client/widgets/card/lock_card/locked_card.dart';
-
 // Review card
 import 'package:tsdm_client/widgets/card/review_card.dart';
-
 // Spoiler card
 import 'package:tsdm_client/widgets/card/spoiler_card.dart';
-
 // Loading
 import 'package:tsdm_client/widgets/network_indicator_image.dart';
-
 // THIS CAN BE REMOVED
 import 'package:tsdm_client/widgets/quoted_text.dart';
 import 'package:universal_html/html.dart' as uh;
@@ -99,7 +91,14 @@ Widget munchElement(
   // Currently is 712.
   return ConstrainedBox(
     constraints: const BoxConstraints(maxWidth: htmlContentMaxWidth),
-    child: Text.rich(TextSpan(children: ret)),
+    child: Text.rich(
+      style: const TextStyle(
+        // Set line height to none to fix gaps between rows only holding images. May cause unexpected overlap or narrow
+        // row spacing between text lines.
+        height: kTextHeightNone,
+      ),
+      TextSpan(children: ret),
+    ),
   );
 }
 
@@ -301,45 +300,37 @@ final class _Muncher with LoggerMixin {
             return null;
           }
 
-          // Base text style.
-          final color =
-              state.colorStack.lastOrNull ?? (state.tapUrl != null ? Theme.of(context).colorScheme.primary : null);
-          final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: color,
-            fontWeight: state.bold ? FontWeight.w600 : null,
-            fontSize: state.fontSizeStack.lastOrNull,
-            backgroundColor: state.backgroundColorStack.lastOrNull,
-            decorationColor: color,
-            decoration: TextDecoration.combine([
-              if (state.underline) TextDecoration.underline,
-              if (state.lineThrough) TextDecoration.lineThrough,
-            ]),
-            fontStyle: state.italic ? FontStyle.italic : null,
-            decorationThickness: 1.5,
-          );
-
           // Attach url to open when `onTap`.
-          TapGestureRecognizer? recognizer;
+          GestureRecognizer? recognizer;
           if (state.tapUrl != null) {
             // Copy to save the url.
             final url = state.tapUrl;
-            recognizer =
-                TapGestureRecognizer()
-                  ..onTap = () {
-                    context.dispatchAsUrl(url!);
-                    options.onUrlLaunched?.call();
-                  };
+            if (isMobile) {
+              recognizer = LongPressGestureRecognizer()
+                ..onLongPressCancel = () async {
+                  await context.dispatchAsUrl(url!);
+                  options.onUrlLaunched?.call();
+                }
+                ..onLongPress = () async => showUrlInfoBottomSheet(context: context, url: url!);
+            } else {
+              // Desktop or web.
+              recognizer = TapGestureRecognizer()
+                ..onTapDown = (_) async {
+                  await context.dispatchAsUrl(url!);
+                  options.onUrlLaunched?.call();
+                }
+                ..onSecondaryTap = () async => showUrlInfoBottomSheet(context: context, url: url!);
+            }
           }
           state
             ..headingBrNodePassed = true
             ..inRepeatWrapLine = false;
 
-          final wrapText = text;
           // Ignore wrap text;
           // state.wrapInWord ? text?.split('').join('\u200B') : text;
 
           // TODO: Support text-shadow.
-          return [TextSpan(text: wrapText, recognizer: recognizer, style: style)];
+          return [TextSpan(text: text, recognizer: recognizer, style: _buildTextStyle())];
         }
 
       case uh.Node.ELEMENT_NODE:
@@ -395,6 +386,7 @@ final class _Muncher with LoggerMixin {
             'center' ||
             'nav' ||
             'section' ||
+            'fieldset' ||
             'pre' => _munch(node),
             String() => null,
           };
@@ -413,6 +405,26 @@ final class _Muncher with LoggerMixin {
     final hrefUrl = state.tapUrl;
     final imgWidth = element.attributes['width']?.parseToInt()?.toDouble();
     final imgHeight = element.attributes['height']?.parseToInt()?.toDouble();
+
+    // Show a button instead of the original image.
+    if (tmpImpellerWorkaroundUrls.contains(url)) {
+      return [
+        WidgetSpan(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 24, minWidth: 24, maxHeight: 24, minHeight: 24),
+            child: IconButton(
+              icon: Icon(Icons.navigate_before_outlined, color: Theme.of(context).colorScheme.tertiary),
+              // Constrains size to fit line height.
+              constraints: const BoxConstraints(maxWidth: 24, minWidth: 24, maxHeight: 24, minHeight: 24),
+              padding: EdgeInsets.zero,
+              tooltip: context.t.workaroundRedirect,
+              onPressed: hrefUrl != null ? () async => context.dispatchAsUrl(hrefUrl) : null,
+            ),
+          ),
+        ),
+      ];
+    }
+
     return [
       WidgetSpan(
         child: GestureDetector(
@@ -507,7 +519,15 @@ final class _Muncher with LoggerMixin {
 
     if (align != null) {
       ret2 = [
-        WidgetSpan(child: Row(children: [Expanded(child: Text.rich(TextSpan(children: ret), textAlign: align))])),
+        WidgetSpan(
+          child: Row(
+            children: [
+              Expanded(
+                child: Text.rich(TextSpan(children: ret), textAlign: align),
+              ),
+            ],
+          ),
+        ),
       ];
 
       // Restore text align.
@@ -520,16 +540,15 @@ final class _Muncher with LoggerMixin {
   }
 
   List<InlineSpan>? _buildSpan(uh.Element element) {
-    final styleEntries =
-        element.attributes['style']
-            ?.split(';')
-            .map((e) {
-              final x = e.trim().split(':');
-              return (x.firstOrNull?.trim(), x.lastOrNull?.trim());
-            })
-            .whereType<(String, String)>()
-            .map((e) => MapEntry(e.$1, e.$2))
-            .toList();
+    final styleEntries = element.attributes['style']
+        ?.split(';')
+        .map((e) {
+          final x = e.trim().split(':');
+          return (x.firstOrNull?.trim(), x.lastOrNull?.trim());
+        })
+        .whereType<(String, String)>()
+        .map((e) => MapEntry(e.$1, e.$2))
+        .toList();
     if (styleEntries == null) {
       final ret = _munch(element);
       if (ret == null) {
@@ -610,11 +629,13 @@ final class _Muncher with LoggerMixin {
     //
     // Some code blocks do not have line number prefix, use the raw content inside if so.
     final liNodes = element.querySelectorAll('div ol li');
-    final text = liNodes.isNotEmpty ? liNodes.map((e) => e.innerText.trim()).join('\n') : element.innerText.trim();
+    final text = liNodes.isNotEmpty ? liNodes.map((e) => e.innerText.trimRight()).join('\n') : element.innerText.trim();
     state
       ..headingBrNodePassed = true
       ..elevation += _elevationStep;
-    final ret = WidgetSpan(child: CodeCard(code: text, elevation: state.elevation));
+    final ret = WidgetSpan(
+      child: CodeCard(code: text, elevation: state.elevation),
+    );
     state.elevation -= _elevationStep;
     return [ret];
   }
@@ -645,7 +666,11 @@ final class _Muncher with LoggerMixin {
     //     ?.attributes['title']
     //     ?.parseToDateTimeUtc8();
 
-    return [WidgetSpan(child: ReviewCard(name: name ?? '', content: content ?? '', avatarUrl: avatarUrl))];
+    return [
+      WidgetSpan(
+        child: ReviewCard(name: name ?? '', content: content ?? '', avatarUrl: avatarUrl),
+      ),
+    ];
   }
 
   /// Spoiler is a button with an area of contents.
@@ -669,7 +694,11 @@ final class _Muncher with LoggerMixin {
     }
     state.headingBrNodePassed = true;
     final ret = WidgetSpan(
-      child: SpoilerCard(title: TextSpan(text: title), content: TextSpan(children: content), elevation: elevation),
+      child: SpoilerCard(
+        title: TextSpan(text: title),
+        content: TextSpan(children: content),
+        elevation: elevation,
+      ),
     );
     return [ret, emptySpan];
   }
@@ -797,7 +826,11 @@ final class _Muncher with LoggerMixin {
         // Text already has the label, do not add duplicate one.
         content = null;
       } else {
-        content = Text('@', style: TextStyle(color: Theme.of(context).colorScheme.primary));
+        content = Text(
+          '@',
+          style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          textScaler: .noScaling,
+        );
       }
     } else {
       final IconData prefixIcon;
@@ -823,7 +856,13 @@ final class _Muncher with LoggerMixin {
             WidgetSpan(
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(onTap: () async => context.dispatchAsUrl(url), child: content),
+                child: GestureDetector(
+                  onTap: () async {
+                    await context.dispatchAsUrl(url);
+                    options.onUrlLaunched?.call();
+                  },
+                  child: content,
+                ),
               ),
             ),
           ...ret,
@@ -933,7 +972,14 @@ final class _Muncher with LoggerMixin {
       }(), // Unreachable but handle it.
     };
 
-    return [TextSpan(text: leading), ...ret];
+    if (!(ret.lastOrNull?.toPlainText().endsWith('\n') ?? false)) {
+      // Append a trailing <br> if not have it.
+      // This is a render issue on the server side, same bbcode may produce different result, with or without trailing
+      // line break.
+      return [TextSpan(text: leading), ...ret, emptySpan];
+    } else {
+      return [TextSpan(text: leading), ...ret];
+    }
   }
 
   /// <code>xxx</code> tags. Mainly for github.com
@@ -1071,13 +1117,12 @@ final class _Muncher with LoggerMixin {
     //
     // </tbody>
     // </table>
-    final data =
-        element
-            .querySelectorRootAll('tbody > tr')
-            .map((e) => (e.querySelector('th')?.innerText.trim(), e.querySelector('td')?.innerText.trim()))
-            .whereType<(String, String)>()
-            .map((e) => NewcomerReportInfo(title: e.$1, data: e.$2))
-            .toList();
+    final data = element
+        .querySelectorRootAll('tbody > tr')
+        .map((e) => (e.querySelector('th')?.innerText.trim(), e.querySelector('td')?.innerText.trim()))
+        .whereType<(String, String)>()
+        .map((e) => NewcomerReportInfo(title: e.$1, data: e.$2))
+        .toList();
 
     return [WidgetSpan(child: NewcomerReportCard(data))];
   }
@@ -1138,7 +1183,10 @@ final class _Muncher with LoggerMixin {
 
   List<InlineSpan> _buildSup(uh.Element element) {
     return [
-      TextSpan(text: element.innerText, style: const TextStyle(fontFeatures: [FontFeature.superscripts()])),
+      TextSpan(
+        text: element.innerText,
+        style: _buildTextStyle()?.copyWith(fontFeatures: [const FontFeature.superscripts()]),
+      ),
     ];
   }
 
@@ -1191,5 +1239,25 @@ final class _Muncher with LoggerMixin {
       state.fontSizeStack.add(fontSize.value());
     }
     return fontSize.isValid;
+  }
+
+  /// Function to build text style, where you could run it everywhere and don't have to carry all style member logic.
+  TextStyle? _buildTextStyle() {
+    final color = state.colorStack.lastOrNull ?? (state.tapUrl != null ? Theme.of(context).colorScheme.primary : null);
+    final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
+      color: color,
+      fontWeight: state.bold ? FontWeight.w600 : null,
+      fontSize: state.fontSizeStack.lastOrNull,
+      backgroundColor: state.backgroundColorStack.lastOrNull,
+      decorationColor: color,
+      decoration: TextDecoration.combine([
+        if (state.underline) TextDecoration.underline,
+        if (state.lineThrough) TextDecoration.lineThrough,
+      ]),
+      fontStyle: state.italic ? FontStyle.italic : null,
+      decorationThickness: 1.5,
+    );
+
+    return style;
   }
 }

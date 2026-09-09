@@ -16,9 +16,7 @@ import 'package:tsdm_client/utils/logger.dart';
 import 'package:universal_html/parsing.dart';
 
 part 'notification_bloc.mapper.dart';
-
 part 'notification_event.dart';
-
 part 'notification_state.dart';
 
 /// Emitter
@@ -131,39 +129,33 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> with L
         .saveNotification(
           uid: uid,
           notificationGroup: NotificationGroup(
-            noticeList:
-                info.noticeList
-                    .map(
-                      (e) =>
-                          NoticeEntity(uid: uid, nid: e.id, timestamp: e.timestamp, data: e.data, alreadyRead: false),
-                    )
-                    .toList(),
-            personalMessageList:
-                info.personalMessageList
-                    .map(
-                      (e) => PersonalMessageEntity(
-                        uid: uid,
-                        timestamp: e.timestamp,
-                        data: e.data,
-                        peerUid: e.peerUid,
-                        peerUsername: e.peerUsername,
-                        sender: e.sender,
-                        alreadyRead: e.alreadyRead,
-                      ),
-                    )
-                    .toList(),
-            broadcastMessageList:
-                info.broadcastMessageList
-                    .map(
-                      (e) => BroadcastMessageEntity(
-                        uid: uid,
-                        timestamp: e.timestamp,
-                        data: e.data,
-                        pmid: e.pmid,
-                        alreadyRead: false,
-                      ),
-                    )
-                    .toList(),
+            noticeList: info.noticeList
+                .map((e) => NoticeEntity(uid: uid, nid: e.id, timestamp: e.timestamp, data: e.data, alreadyRead: false))
+                .toList(),
+            personalMessageList: info.personalMessageList
+                .map(
+                  (e) => PersonalMessageEntity(
+                    uid: uid,
+                    timestamp: e.timestamp,
+                    data: e.data,
+                    peerUid: e.peerUid,
+                    peerUsername: e.peerUsername,
+                    sender: e.sender,
+                    alreadyRead: e.alreadyRead,
+                  ),
+                )
+                .toList(),
+            broadcastMessageList: info.broadcastMessageList
+                .map(
+                  (e) => BroadcastMessageEntity(
+                    uid: uid,
+                    timestamp: e.timestamp,
+                    data: e.data,
+                    pmid: e.pmid,
+                    alreadyRead: false,
+                  ),
+                )
+                .toList(),
           ),
         )
         .run();
@@ -395,7 +387,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> with L
   /// Do NOT dispose [_infoRepository] here because the state cubit owns it.
   @override
   Future<void> close() async {
-    _notificationRepository.dispose();
+    await _notificationRepository.dispose();
     return super.close();
   }
 }

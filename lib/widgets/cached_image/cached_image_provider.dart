@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fpdart/fpdart.dart';
+import 'package:tsdm_client/constants/constants.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/shared/providers/image_cache_provider/image_cache_provider.dart';
@@ -51,14 +53,13 @@ final class CachedImageProvider extends ImageProvider<CachedImageProvider> with 
   /// Get the image url.
   String get url => imageUrl;
 
-  Future<Uint8List> _onImageError() async {
+  Future<Option<Uint8List>> _onImageError() async {
     final req = switch (usage) {
       ImageUsageInfoOther() => ImageCacheGeneralRequest(imageUrl),
       ImageUsageInfoUserAvatar(:final username) => ImageCacheUserAvatarRequest(username: username, imageUrl: imageUrl),
     };
 
-    final bytes = await getIt.get<ImageCacheProvider>().getOrMakeCache(req);
-    return bytes;
+    return getIt.get<ImageCacheProvider>().getOrMakeCache(req);
   }
 
   @override
@@ -78,11 +79,10 @@ final class CachedImageProvider extends ImageProvider<CachedImageProvider> with 
       chunkEvents: chunkEvents.stream,
       scale: key.scale,
       debugLabel: key.url,
-      informationCollector:
-          () => <DiagnosticsNode>[
-            DiagnosticsProperty<ImageProvider>('CachedImageProvider', this),
-            DiagnosticsProperty<CachedImageProvider>('ImageKey', key),
-          ],
+      informationCollector: () => <DiagnosticsNode>[
+        DiagnosticsProperty<ImageProvider>('CachedImageProvider', this),
+        DiagnosticsProperty<CachedImageProvider>('ImageKey', key),
+      ],
     );
   }
 
@@ -94,7 +94,8 @@ final class CachedImageProvider extends ImageProvider<CachedImageProvider> with 
     try {
       assert(key == this, 'check instance in load async');
       if (usage is! ImageUsageInfoUserAvatar && imageUrl.isEmpty) {
-        return Future.error('failed to make $usage: empty url');
+        // error('failed to make $usage: empty url');
+        return await ui.instantiateImageCodecFromBuffer(await ui.ImmutableBuffer.fromAsset(assetPlaceholderImagePath));
       }
       final f = switch (usage) {
         ImageUsageInfoOther() => getIt.get<ImageCacheProvider>().getOrMakeCache(ImageCacheGeneralRequest(imageUrl)),
@@ -104,11 +105,20 @@ final class CachedImageProvider extends ImageProvider<CachedImageProvider> with 
         ),
       };
 
-      final bytes = await f.onError((_, __) => _onImageError());
-      if (bytes.lengthInBytes == 0) {
-        return Future.error('zero bytes');
+      switch (await TaskOption(
+        () => f,
+      ).orElse<Uint8List>(() => TaskOption(_onImageError)).run()) {
+        case Some(:final value):
+          return decode(await ui.ImmutableBuffer.fromUint8List(value));
+        case None():
+          if (usage is ImageUsageInfoUserAvatar) {
+            return await ui.instantiateImageCodecFromBuffer(
+              await ui.ImmutableBuffer.fromAsset(assetPlaceholderImagePath),
+            );
+          } else {
+            return Future.error('failed to load image for $imageUrl');
+          }
       }
-      return decode(await ui.ImmutableBuffer.fromUint8List(bytes));
     } catch (e) {
       // // Depending on where the exception was thrown, the image cache may not
       // // have had a chance to track the key in the cache at all.

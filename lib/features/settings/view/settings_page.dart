@@ -5,35 +5,36 @@ import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'package:system_theme/system_theme.dart';
-import 'package:tsdm_client/constants/constants.dart';
 import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/color.dart';
 import 'package:tsdm_client/extensions/duration.dart';
 import 'package:tsdm_client/features/checkin/models/models.dart';
 import 'package:tsdm_client/features/notification/bloc/auto_notification_cubit.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/features/settings/bloc/settings_bloc.dart';
 import 'package:tsdm_client/features/settings/repositories/settings_repository.dart';
 import 'package:tsdm_client/features/settings/view/debug_showcase_page.dart';
+import 'package:tsdm_client/features/settings/widgets/auto_clear_image_cache_duration_dialog.dart';
 import 'package:tsdm_client/features/settings/widgets/auto_sync_notice_dialog.dart';
 import 'package:tsdm_client/features/settings/widgets/check_in_dialog.dart';
 import 'package:tsdm_client/features/settings/widgets/clear_cache_bottom_sheet.dart';
 import 'package:tsdm_client/features/settings/widgets/color_picker_dialog.dart';
 import 'package:tsdm_client/features/settings/widgets/font_family_dialog.dart';
+import 'package:tsdm_client/features/settings/widgets/font_scale_dialog.dart';
 import 'package:tsdm_client/features/settings/widgets/language_dialog.dart';
 import 'package:tsdm_client/features/settings/widgets/proxy_settings_dialog.dart';
+import 'package:tsdm_client/features/settings/widgets/select_thread_floor_interaction_mode_dialog.dart';
 import 'package:tsdm_client/features/theme/cubit/theme_cubit.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/shared/providers/storage_provider/models/database/connection/native.dart';
-import 'package:tsdm_client/shared/providers/storage_provider/storage_provider.dart';
 import 'package:tsdm_client/utils/clipboard.dart';
 import 'package:tsdm_client/utils/platform.dart';
 import 'package:tsdm_client/utils/show_bottom_sheet.dart';
@@ -44,6 +45,7 @@ import 'package:tsdm_client/widgets/color_palette.dart';
 import 'package:tsdm_client/widgets/section_list_tile.dart';
 import 'package:tsdm_client/widgets/section_switch_list_tile.dart';
 import 'package:tsdm_client/widgets/section_title_text.dart';
+import 'package:tsdm_client/widgets/shutdown.dart';
 import 'package:tsdm_client/widgets/tips.dart';
 
 /// Settings page of the app.
@@ -67,7 +69,10 @@ class _SettingsPageState extends State<SettingsPage> {
   /// * Return (null, true) if user chose to use system locale.
   /// * Return (locale, false) if user chose to use specified locale.
   Future<(AppLocale?, bool)?> selectLanguageDialog(BuildContext context, String currentLocale) async {
-    return showDialog<(AppLocale?, bool)>(context: context, builder: (context) => LanguageDialog(currentLocale));
+    return showDialog<(AppLocale?, bool)>(
+      context: context,
+      builder: (context) => RootPage(DialogPaths.selectLanguage, LanguageDialog(currentLocale)),
+    );
   }
 
   /// Show a dialog to let user select accent color.
@@ -83,7 +88,19 @@ class _SettingsPageState extends State<SettingsPage> {
     return showCustomBottomSheet<(Color?, bool)>(
       title: context.t.colorPickerDialog.title,
       context: context,
-      builder: (context) => ColorPickerDialog(currentColorValue: colorValue, blocContext: context),
+      builder: (context) =>
+          RootPage(DialogPaths.colorPicker, ColorPickerDialog(currentColorValue: colorValue, blocContext: context)),
+      bottomBar: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            child: Text(context.t.general.reset),
+            onPressed: () async {
+              context.pop((null, true));
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -126,6 +143,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
     /// App wide font family
     final fontFamily = state.settingsMap.fontFamily;
+
+    // App wide text scale factor.
+    final textScaleFactor = state.settingsMap.textScaleFactor;
 
     return [
       SectionTitleText(tr.title),
@@ -283,9 +303,8 @@ class _SettingsPageState extends State<SettingsPage> {
         secondary: const Icon(Icons.notifications_active_outlined),
         title: Text(tr.unreadPersonalMessageBadge),
         value: showUnreadPersonalMessageBadge,
-        onChanged:
-            (v) =>
-                context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.showUnreadPersonalMessageBadge, v)),
+        onChanged: (v) =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.showUnreadPersonalMessageBadge, v)),
       ),
 
       // Unread broadcast message badge.
@@ -293,9 +312,8 @@ class _SettingsPageState extends State<SettingsPage> {
         secondary: const Icon(Icons.notification_important_outlined),
         title: Text(tr.unreadBroadcastMessageBadge),
         value: showUnreadBroadcastMessageBadge,
-        onChanged:
-            (v) =>
-                context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.showUnreadBroadcastMessageBadge, v)),
+        onChanged: (v) =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.showUnreadBroadcastMessageBadge, v)),
       ),
 
       Padding(padding: edgeInsetsT4B4, child: Tips(tr.unreadBadgeLimitation)),
@@ -319,13 +337,33 @@ class _SettingsPageState extends State<SettingsPage> {
         title: Text(tr.fontFamily.title),
         subtitle: fontFamily.isEmpty ? null : Text(fontFamily),
         onTap: () async {
-          final selectedFont = await showDialog<String>(context: context, builder: (_) => FontFamilyDialog(fontFamily));
+          final selectedFont = await showDialog<String>(
+            context: context,
+            builder: (_) => RootPage(DialogPaths.fontPicker, FontFamilyDialog(fontFamily)),
+          );
           if (selectedFont == null || !context.mounted) {
             return;
           }
 
           context.read<ThemeCubit>().setFontFamily(selectedFont);
           context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.fontFamily, selectedFont));
+        },
+      ),
+
+      /// Text scale factor.
+      SectionListTile(
+        leading: const Icon(Icons.text_increase_outlined),
+        title: Text(tr.textScaleFactor.title),
+        onTap: () async {
+          final selectedScale = await showDialog<double>(
+            context: context,
+            builder: (_) => RootPage(DialogPaths.textScalePicker, TextScaleDialog(textScaleFactor)),
+          );
+          if (!context.mounted || selectedScale == null) {
+            return;
+          }
+
+          context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.textScaleFactor, selectedScale));
         },
       ),
     ];
@@ -354,8 +392,8 @@ class _SettingsPageState extends State<SettingsPage> {
         title: Text(tr.windowRememberPosition.title),
         subtitle: Text(tr.windowRememberPosition.detail),
         value: windowRememberPosition,
-        onChanged:
-            (v) => context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.windowRememberPosition, v)),
+        onChanged: (v) =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.windowRememberPosition, v)),
       ),
       SectionSwitchListTile(
         secondary: const Icon(Icons.filter_center_focus_outlined),
@@ -370,7 +408,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   List<Widget> _buildBehaviorSection(BuildContext context, SettingsState state) {
     final tr = context.t.settingsPage.behaviorSection;
-    final doublePressExit = state.settingsMap.doublePressExit;
     final threadReverseOrder = state.settingsMap.threadReverseOrder;
     // Duration in seconds.
     final autoSyncNoticeSeconds = state.settingsMap.autoSyncNoticeSeconds;
@@ -379,26 +416,17 @@ class _SettingsPageState extends State<SettingsPage> {
       autoSyncNoticeDuration = Duration(seconds: autoSyncNoticeSeconds);
     }
     final enableBBCodeParser = state.settingsMap.enableEditorBBCodeParser;
+    final threadFloorInteractionMode = state.settingsMap.threadFloorInteractionMode;
 
     return [
       SectionTitleText(tr.title),
-      if (isMobile)
-        SectionSwitchListTile(
-          secondary: const Icon(Icons.block_outlined),
-          title: Text(tr.doublePressExit.title),
-          subtitle: Text(tr.doublePressExit.detail),
-          value: doublePressExit,
-          onChanged: (v) async {
-            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.doublePressExit, v));
-          },
-        ),
       SectionSwitchListTile(
         secondary: const Icon(Icons.align_vertical_top_outlined),
         title: Text(tr.threadReverseOrder.title),
         subtitle: Text(tr.threadReverseOrder.detail),
         value: threadReverseOrder,
-        onChanged:
-            (v) async => context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.threadReverseOrder, v)),
+        onChanged: (v) async =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.threadReverseOrder, v)),
       ),
       SectionListTile(
         leading: const Icon(Icons.sync_outlined),
@@ -411,7 +439,7 @@ class _SettingsPageState extends State<SettingsPage> {
         onTap: () async {
           final seconds = await showDialog<int>(
             context: context,
-            builder: (_) => AutoSyncNoticeDialog(autoSyncNoticeSeconds),
+            builder: (_) => RootPage(DialogPaths.selectAutoSyncDuration, AutoSyncNoticeDialog(autoSyncNoticeSeconds)),
           );
           if (seconds == null || !context.mounted) {
             return;
@@ -426,22 +454,68 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       SectionSwitchListTile(
         secondary: const Icon(Icons.code_outlined),
-        title: Text(tr.editorBBCodeParser.title),
-        subtitle: Text(tr.editorBBCodeParser.detail),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(child: Text(tr.editorBBCodeParser.title)),
+            sizedBoxW8H8,
+            IconButton(
+              icon: Icon(Icons.help_outline, color: Theme.of(context).colorScheme.secondary),
+              tooltip: tr.editorBBCodeParser.tip.title,
+              onPressed: () async => showMessageSingleButtonDialog(
+                context: context,
+                title: tr.editorBBCodeParser.tip.title,
+                message: tr.editorBBCodeParser.tip.detail,
+              ),
+            ),
+          ],
+        ),
         value: enableBBCodeParser,
-        onChanged:
-            (v) async =>
-                context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.enableEditorBBCodeParser, v)),
+        onChanged: (v) async =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.enableEditorBBCodeParser, v)),
+      ),
+      SectionListTile(
+        leading: const Icon(Icons.star_rate_outlined),
+        title: Text(context.t.fastRateTemplate.title),
+        subtitle: Text(context.t.fastRateTemplate.details),
+        onTap: () async => context.pushNamed(ScreenPaths.fastRateTemplate, pathParameters: {'pick': 'false'}),
+      ),
+      SectionListTile(
+        leading: const Icon(Icons.quickreply_outlined),
+        title: Text(context.t.fastReplyTemplate.title),
+        subtitle: Text(context.t.fastReplyTemplate.details),
+        onTap: () async => context.pushNamed(ScreenPaths.fastReplyTemplate, pathParameters: {'pick': 'false'}),
+      ),
+      SectionListTile(
+        leading: const Icon(Icons.touch_app_outlined),
+        title: Text(context.t.settingsPage.behaviorSection.threadFloorInteractionMode.title),
+        subtitle: Text(context.t.settingsPage.behaviorSection.threadFloorInteractionMode.detail),
+        onTap: () async {
+          final result = await showSelectThreadFloorInteractionMode(context, threadFloorInteractionMode);
+          if (result == null) {
+            return;
+          }
+          if (!context.mounted) {
+            return;
+          }
+          context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.threadFloorInteractionMode, result));
+        },
       ),
     ];
   }
 
   Future<String?> _showSetCheckinFeelingDialog(BuildContext context, String defaultFeeling) async {
-    return showDialog<String>(context: context, builder: (context) => CheckinFeelingDialog(defaultFeeling));
+    return showDialog<String>(
+      context: context,
+      builder: (context) => RootPage(DialogPaths.selectCheckinFeeling, CheckinFeelingDialog(defaultFeeling)),
+    );
   }
 
   Future<String?> _showSetCheckinMessageDialog(BuildContext context, String defaultMessage) async {
-    return showDialog<String>(context: context, builder: (context) => CheckinMessageDialog(defaultMessage));
+    return showDialog<String>(
+      context: context,
+      builder: (context) => RootPage(DialogPaths.selectCheckinMessage, CheckinMessageDialog(defaultMessage)),
+    );
   }
 
   List<Widget> _buildCheckinSection(BuildContext context, SettingsState state) {
@@ -502,14 +576,49 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   List<Widget> _buildStorageSection(BuildContext context, SettingsState state) {
+    final tr = context.t.settingsPage.storageSection;
+    final enableAutoClearImageCache = state.settingsMap.enableAutoClearImageCache;
+    final autoClearImageDurationSec = state.settingsMap.autoClearImageCacheDuration;
+    Duration? autoClearImageDuration;
+    if (autoClearImageDurationSec > 0) {
+      autoClearImageDuration = Duration(seconds: autoClearImageDurationSec);
+    }
+
     return [
       // Cache.
-      SectionTitleText(context.t.settingsPage.storageSection.title),
+      SectionTitleText(tr.title),
       SectionListTile(
         leading: const Icon(Icons.cleaning_services_outlined),
-        title: Text(context.t.settingsPage.storageSection.clearCache),
+        title: Text(tr.clearCache),
         onTap: () async {
           await showClearCacheBottomSheet(context: context);
+        },
+      ),
+      SectionSwitchListTile(
+        secondary: const Icon(Icons.image_not_supported_outlined),
+        title: Text(tr.scheduledCleaning.title),
+        subtitle: Text(tr.scheduledCleaning.details),
+        value: enableAutoClearImageCache,
+        onChanged: (v) =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.enableAutoClearImageCache, v)),
+      ),
+      SectionListTile(
+        enabled: enableAutoClearImageCache,
+        leading: const Icon(Symbols.auto_timer_rounded),
+        title: Text(tr.scheduledCleaning.duration.title),
+        subtitle: autoClearImageDuration != null ? Text(autoClearImageDuration.readable(context)) : null,
+        onTap: () async {
+          final seconds = await showDialog<int>(
+            context: context,
+            builder: (_) => RootPage(
+              DialogPaths.autoClearImageCacheDuration,
+              AutoClearImageCacheDurationDialog(autoClearImageDurationSec),
+            ),
+          );
+          if (seconds == null || !context.mounted) {
+            return;
+          }
+          context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.autoClearImageCacheDuration, seconds));
         },
       ),
     ];
@@ -518,6 +627,7 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Widget> _buildAdvanceSection(BuildContext context, SettingsState state) {
     final netClientUseProxy = state.settingsMap.netClientUseProxy;
     final netClientProxy = state.settingsMap.netClientProxy;
+    final useDetectedProxy = state.settingsMap.useDetectedProxyWhenStartup;
     String? host;
     String? port;
     if (netClientProxy.contains(':')) {
@@ -526,44 +636,64 @@ class _SettingsPageState extends State<SettingsPage> {
       port = parts.elementAtOrNull(1);
     }
 
+    // On these platforms, uses native http client for now and the proxy settings are not configurable.
+    final proxyAutomated = isAndroid || isMacOS || isIOS;
+
     final tr = context.t.settingsPage.advancedSection;
-    Text? proxyOptionHint;
-    if (!netClientUseProxy) {
-      proxyOptionHint = Text(tr.proxySettings.disabled);
-    } else if (host == null && port == null) {
-      proxyOptionHint = Text(tr.proxySettings.notSet, style: TextStyle(color: Theme.of(context).colorScheme.error));
-    }
+
     return [
       SectionTitleText(tr.title),
       if (!kReleaseMode)
         SectionListTile(
           leading: const Icon(Icons.developer_mode_outlined),
           title: const Text('DEBUG SHOWCASE'),
-          onTap: () {
-            Navigator.push(context, MaterialPageRoute<void>(builder: (context) => const DebugShowcasePage()));
+          onTap: () async {
+            await Navigator.push(context, MaterialPageRoute<void>(builder: (context) => const DebugShowcasePage()));
           },
         ),
-      SectionSwitchListTile(
-        secondary: Icon(MdiIcons.networkOutline),
-        title: Text(tr.useProxy),
-        value: netClientUseProxy,
-        onChanged: (v) {
-          context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.netClientUseProxy, v));
-          showSnackBar(context: context, message: context.t.general.affectAfterRestart);
-        },
-      ),
-      SectionListTile(
-        enabled: netClientUseProxy,
-        leading: const Icon(Icons.network_locked_outlined),
-        title: Text(tr.proxySettings.title),
-        subtitle: proxyOptionHint,
-        onTap:
-            () async => showDialog<void>(
-              context: context,
-              builder: (context) => ProxySettingsDialog(host: host, port: port),
-              barrierDismissible: false,
-            ),
-      ),
+
+      // Proxy settings, enable or disable.
+      if (proxyAutomated)
+        SectionListTile(
+          leading: Icon(MdiIcons.networkOutline),
+          title: Text(tr.useProxy),
+          subtitle: Text(tr.proxySettings.automatedOnPlatform),
+          enabled: false,
+        )
+      else
+        SectionSwitchListTile(
+          secondary: Icon(MdiIcons.networkOutline),
+          title: Text(tr.useProxy),
+          value: netClientUseProxy,
+          onChanged: (v) {
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.netClientUseProxy, v));
+            showSnackBar(context: context, message: context.t.general.affectAfterRestart);
+          },
+        ),
+
+      if (!proxyAutomated)
+        SectionSwitchListTile(
+          secondary: const Icon(Symbols.network_manage),
+          title: Text(tr.proxySettings.useDetectProxy.title),
+          subtitle: Text(tr.proxySettings.useDetectProxy.detail),
+          value: useDetectedProxy,
+          onChanged: netClientUseProxy && !proxyAutomated
+              ? (v) async =>
+                    context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.useDetectedProxyWhenStartup, v))
+              : null,
+        ),
+
+      if (!proxyAutomated)
+        SectionListTile(
+          enabled: netClientUseProxy && !useDetectedProxy && !proxyAutomated,
+          leading: const Icon(Icons.network_locked_outlined),
+          title: Text(tr.proxySettings.title),
+          onTap: () async => showDialog<void>(
+            context: context,
+            builder: (context) => RootPage(DialogPaths.setupProxy, ProxySettingsDialog(host: host, port: port)),
+            barrierDismissible: false,
+          ),
+        ),
 
       // Export data.
       SectionListTile(
@@ -613,19 +743,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // TODO: Validate database
 
-          // CAUTION: unsafe operation.
-          await getIt.get<StorageProvider>().dispose();
-
           final db = await databaseFile;
           await db.writeAsBytes(data);
 
-          // Close the app.
-          if (isAndroid || isIOS) {
-            await SystemNavigator.pop(animated: true);
-          } else {
-            // CAUTION: unsafe operation.
-            exit(0);
-          }
+          await exitApp();
         },
       ),
     ];
@@ -671,6 +792,11 @@ class _SettingsPageState extends State<SettingsPage> {
               }
             },
           ),
+          // View historical logs.
+          SectionListTile(
+            title: Text(tr.viewHistoryLog.title),
+            onTap: () async => context.pushNamed(ScreenPaths.debugHistoricalLog),
+          ),
           SectionListTile(
             title: Text(tr.copyDatabaseDir),
             onTap: () async {
@@ -705,8 +831,8 @@ class _SettingsPageState extends State<SettingsPage> {
         secondary: const Icon(Icons.cloud_done_outlined),
         title: Text(tr.updateCheckOnStartup),
         value: enableUpdateCheckOnStartup,
-        onChanged:
-            (v) => context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.enableUpdateCheckOnStartup, v)),
+        onChanged: (v) =>
+            context.read<SettingsBloc>().add(SettingsValueChanged(SettingsKeys.enableUpdateCheckOnStartup, v)),
       ),
 
       /// Update
@@ -720,32 +846,7 @@ class _SettingsPageState extends State<SettingsPage> {
       SectionListTile(
         leading: const Icon(Icons.history_outlined),
         title: Text(tr.changelog),
-        onTap:
-            () async => Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) {
-                  return Scaffold(
-                    appBar: AppBar(title: Text(tr.changelog)),
-                    body: FutureBuilder(
-                      future: compute(readChangelogContent, ''),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          // Unreachable.
-                          return Text('error: ${snapshot.error}');
-                        }
-
-                        if (!snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
-                        }
-
-                        return Markdown(data: snapshot.data!);
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
+        onTap: () async => context.pushNamed(ScreenPaths.localChangelog),
       ),
     ];
   }

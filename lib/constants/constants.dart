@@ -27,17 +27,16 @@ const assetDartLogoPath = './assets/images/dart.svg';
 /// ref: https://gitlab.com/fdroid/artwork/-/blob/master/fdroid-logo-2015/fdroid-logo.svg
 const assetsFDroidLogoPath = './assets/images/fdroid-logo.svg';
 
-/// Example avatar.
-const assetExampleIndexAvatar = './assets/images/index_avatar.png';
-
-/// Fallback avatar image.
-const assetNoAvatarImagePath = './assets/images/noavatar_middle.jpg';
-
 /// Path of all emoji related asset.
 const assetEmojiDir = './assets/images/emoji/';
 
 /// Bundled emoji.
 const assetEmojiInfoPath = './assets/images/emoji/emoji.json';
+
+/// Tiny placeholder image.
+///
+/// As part of workaround for the image data.
+const assetPlaceholderImagePath = './assets/images/placeholder.png';
 
 /// Changelog till publish.
 ///
@@ -64,7 +63,7 @@ Future<String> readChangelogContent(String _) async {
 ///
 /// Used in normal usages, disable these features to make concise toolbar
 /// layout.
-const defaultEditorDisabledFeatures = {
+const Set<EditorFeatures> defaultEditorDisabledFeatures = {
   EditorFeatures.fontFamily,
   EditorFeatures.fontSize,
   EditorFeatures.bold,
@@ -83,16 +82,18 @@ const defaultEditorDisabledFeatures = {
   EditorFeatures.paste,
   EditorFeatures.codeBlock,
   EditorFeatures.quoteBlock,
+  EditorFeatures.free,
 };
 
 /// All features disabled by default.
 ///
 /// Used in normal usages, disable these features to remove noisy styles.
-const defaultFullScreenDisabledEditorFeatures = {
+const Set<EditorFeatures> defaultFullScreenDisabledEditorFeatures = {
   EditorFeatures.fontFamily,
   EditorFeatures.cut,
   EditorFeatures.copy,
   EditorFeatures.paste,
+  EditorFeatures.free,
 };
 
 /// Medal image size fixed to 34 x 55
@@ -117,3 +118,6 @@ const htmlContentMaxWidth = 712.0;
 
 /// Prefix of all cookie.
 const cookiePrefix = 's_gkr8_682f';
+
+/// The maximum count of recent used custom colors in editor.
+const editorRecentUsedCustomColorsMaxCount = 8;

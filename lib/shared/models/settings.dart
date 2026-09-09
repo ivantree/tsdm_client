@@ -19,7 +19,9 @@ enum SettingsKeys<T> implements Comparable<SettingsKeys<T>> {
   /// After debugging like this:
   /// https://github.com/flutter/flutter/issues/32558#issuecomment-886022246
   /// Remove "gzip" encoding in "Accept-Encoding" can fix this.
-  netClientAcceptEncoding<String>(name: 'netClientAcceptEncoding', type: String, defaultValue: 'deflate, br'),
+  ///
+  /// See dio interceptor `_GzipEncodingChecker` for more details.
+  netClientAcceptEncoding<String>(name: 'netClientAcceptEncoding', type: String, defaultValue: 'gzip, deflate, br'),
 
   /// Net client config: Accept-Language.
   netClientAcceptLanguage<String>(
@@ -104,11 +106,6 @@ enum SettingsKeys<T> implements Comparable<SettingsKeys<T>> {
   /// Show badge or unread notice count on notice button.
   showUnreadInfoHint<bool>(name: 'showUnreadInfoHint', type: bool, defaultValue: true),
 
-  /// Only exit the app when user press back button twice or more.
-  ///
-  /// Avoid accidentally exit the app.
-  doublePressExit<bool>(name: 'doublePressExit', type: bool, defaultValue: true),
-
   /// View latest posts in thread first, in other words, posts are sorted in
   /// desc order.
   threadReverseOrder<bool>(name: 'threadReverseOrder', type: bool, defaultValue: false),
@@ -140,7 +137,7 @@ enum SettingsKeys<T> implements Comparable<SettingsKeys<T>> {
   /// Show unread badge on notice card.
   ///
   /// Disabled by default because the read/unread flag is offline.
-  showUnreadNoticeBadge<bool>(name: 'showUnreadNoticeBadge', type: bool, defaultValue: false),
+  showUnreadNoticeBadge<bool>(name: 'showUnreadNoticeBadge', type: bool, defaultValue: true),
 
   /// Show unread badge on personal message card.
   ///
@@ -150,7 +147,7 @@ enum SettingsKeys<T> implements Comparable<SettingsKeys<T>> {
   /// Show unread badge on broadcast message card.
   ///
   /// Disabled by default because the read/unread flag is offline.
-  showUnreadBroadcastMessageBadge<bool>(name: 'showUnreadBroadcastMessageBadge', type: bool, defaultValue: false),
+  showUnreadBroadcastMessageBadge<bool>(name: 'showUnreadBroadcastMessageBadge', type: bool, defaultValue: true),
 
   /// Duration of automatically fetch notice from server, in seconds.
   ///
@@ -170,7 +167,46 @@ enum SettingsKeys<T> implements Comparable<SettingsKeys<T>> {
   enableEditorBBCodeParser<bool>(name: 'enableEditorBBCodeParser', type: bool, defaultValue: true),
 
   /// Enable the update check when app startup.
-  enableUpdateCheckOnStartup<bool>(name: 'enableUpdateCheckOnStartup', type: bool, defaultValue: true);
+  enableUpdateCheckOnStartup<bool>(name: 'enableUpdateCheckOnStartup', type: bool, defaultValue: true),
+
+  /// Recent used custom colors in editor.
+  ///
+  /// The length of the list is determined to .
+  editorRecentUsedCustomColors<List<int>>(name: 'editorRecentUsedCustomColors', type: List<int>, defaultValue: []),
+
+  /// Detect system proxy settings when app startup and use the detected value.
+  useDetectedProxyWhenStartup<bool>(name: 'useDetectedProxyWhenStartup', type: bool, defaultValue: false),
+
+  /// Auto clear outdated image cache.
+  ///
+  /// Default is disabled, to match the old behavior.
+  enableAutoClearImageCache<bool>(name: 'enableAutoClearImageCache', type: bool, defaultValue: false),
+
+  /// Duration of an image cache considered as outdated for auto clear, in seconds.
+  ///
+  /// Images that have a long duration till last used time will be considered as outdated.
+  ///
+  /// Default is 7 days = 60 * 60 * 24 * 7.
+  autoClearImageCacheDuration<int>(name: 'autoClearImageCacheDuration', type: int, defaultValue: 60 * 60 * 24 * 7),
+
+  /// Collapse app bar when scroll in pages we want to do it, for example forum page and thread page where app bar
+  /// holds more spaces and user shall have more space to focus on contents in UI.
+  collapseAppBarWhenScroll<bool>(name: 'collapseAppBarWhenScroll', type: bool, defaultValue: true),
+
+  /// Interaction mode on thread floors.
+  threadFloorInteractionMode<ThreadFloorInteractionMode>(
+    name: 'threadFloorInteractionMode',
+    type: ThreadFloorInteractionMode,
+    defaultValue: ThreadFloorInteractionMode.adaptiveTapMenu,
+  ),
+
+  /// Global text scale factor.
+  textScaleFactor<double>(
+    name: 'textScaleFactor',
+    type: double,
+    defaultValue: 1,
+  ),
+  ;
 
   const SettingsKeys({required this.name, required this.type, required this.defaultValue});
 

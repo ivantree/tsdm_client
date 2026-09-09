@@ -1,10 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// A dialog to ask jump page info from user before jump page.
-class JumpPageDialog extends StatelessWidget {
+class JumpPageDialog extends StatefulWidget {
   /// Constructor.
   const JumpPageDialog({required this.current, required this.max, this.min = 0, super.key})
     : assert(max >= min, 'max index should be not less than min'),
@@ -22,61 +26,81 @@ class JumpPageDialog extends StatelessWidget {
   final int max;
 
   @override
+  State<JumpPageDialog> createState() => _JumpPageDialogState();
+}
+
+class _JumpPageDialogState extends State<JumpPageDialog> {
+  late int currentPage;
+  late final TextEditingController textController;
+
+  @override
+  void initState() {
+    super.initState();
+    currentPage = widget.current;
+    textController = TextEditingController(text: '$currentPage');
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    textController.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    var v = current;
-    final choicesList =
-        List.generate(max - min + 1, (index) {
-          return min + index;
-        }).toList();
-    return AlertDialog(
+    return CustomAlertDialog.sync(
       title: Text(context.t.jumpDialog.title),
-      // FIXME: Here should handle better when both large mount or small mount
-      //  of choices.
-      // Issue is that Column will junk is choices are too many and ListView
-      // fills all height even there are only few choices.
-      content:
-          choicesList.length <= 30
-              ? SingleChildScrollView(
-                child: Column(
-                  children:
-                      choicesList
-                          .map(
-                            (e) => RadioListTile(
-                              title: Text('$e'),
-                              value: e,
-                              groupValue: v,
-                              onChanged: (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                v = value;
-                                Navigator.pop(context, v);
-                              },
-                            ),
-                          )
-                          .toList(),
-                ),
-              )
-              : SizedBox(
-                width: math.min(MediaQuery.of(context).size.width * 0.75, 200),
-                child: ListView.builder(
-                  itemCount: choicesList.length,
-                  itemBuilder: (context, index) {
-                    return RadioListTile(
-                      title: Text('${choicesList[index]}'),
-                      value: choicesList[index],
-                      groupValue: v,
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        v = value;
-                        Navigator.pop(context, v);
-                      },
-                    );
-                  },
-                ),
-              ),
+      content: Column(
+        children: [
+          Slider(
+            autofocus: true,
+            // Since flutter 3.29
+            // ignore: deprecated_member_use
+            year2023: false,
+            max: widget.max.toDouble(),
+            min: widget.min.toDouble(),
+            divisions: math.max(widget.max - 1, 1),
+            label: '$currentPage',
+            value: currentPage.toDouble(),
+            onChanged: (v) => setState(() {
+              currentPage = v.round();
+              textController.text = currentPage.toString();
+            }),
+          ),
+          sizedBoxW12H12,
+          TextField(
+            controller: textController,
+            decoration: const InputDecoration(
+              border: UnderlineInputBorder(),
+              constraints: BoxConstraints(maxWidth: 100),
+            ),
+            textAlign: TextAlign.center,
+            inputFormatters: [FilteringTextInputFormatter(RegExp(r'\d'), allow: true)],
+            keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final vv = int.tryParse(v);
+              if (vv == null || vv < widget.min || vv > widget.max) {
+                return;
+              }
+              setState(() => currentPage = vv);
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(child: Text(context.t.general.cancel), onPressed: () => context.pop()),
+        TextButton(
+          child: Text(context.t.general.ok),
+          onPressed: () {
+            if (currentPage != widget.current) {
+              // Page changed.
+              context.pop(currentPage);
+            } else {
+              context.pop();
+            }
+          },
+        ),
+      ],
     );
   }
 }

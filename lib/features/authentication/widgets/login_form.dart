@@ -42,7 +42,6 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
   late final TextEditingController passwordController;
   late final TextEditingController answerController;
   late final TextEditingController verifyCodeController;
-  late final CaptchaImageController captchaImageController;
 
   bool _showPassword = false;
 
@@ -54,7 +53,7 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
   late final FocusNode passwordFieldFocus;
 
   Future<void> _login(BuildContext context, LoginField loginField, AuthenticationState state) async {
-    if (formKey.currentState == null || !(formKey.currentState!).validate()) {
+    if (state.loginHash == null || formKey.currentState == null || !(formKey.currentState!).validate()) {
       return;
     }
 
@@ -62,12 +61,10 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
       loginField: loginField,
       loginFieldValue: usernameController.text,
       password: passwordController.text,
-      // formHash: state.loginHash!.formHash,
-      tsdmVerify: verifyCodeController.text,
-      securityQuestion:
-          _question == _loginQuestions.first
-              ? null
-              : SecurityQuestion(questionId: '${_loginQuestions.indexOf(_question)}', answer: answerController.text),
+      captcha: verifyCodeController.text,
+      securityQuestion: _question == _loginQuestions.first
+          ? null
+          : SecurityQuestion(questionId: '${_loginQuestions.indexOf(_question)}', answer: answerController.text),
     );
 
     var times = 10;
@@ -155,23 +152,32 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
             validator: (v) => v!.trim().isNotEmpty ? null : tr.passwordEmpty,
           ),
           sizedBoxW12H12,
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: verifyCodeController,
-                  decoration: InputDecoration(prefixIcon: const Icon(Icons.pin), labelText: tr.verifyCode),
-                  validator: (v) => v!.trim().isNotEmpty ? null : tr.verifyCodeEmpty,
+          if (state.loginHash?.requiresCaptcha ?? false) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: verifyCodeController,
+                    decoration: InputDecoration(prefixIcon: const Icon(Icons.pin), labelText: tr.verifyCode),
+                    validator: (v) => v!.trim().isNotEmpty ? null : tr.verifyCodeEmpty,
+                  ),
                 ),
-              ),
-              sizedBoxW12H12,
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 150),
-                child: CaptchaImage(captchaImageController),
-              ),
-            ],
-          ),
-          sizedBoxW12H12,
+                sizedBoxW12H12,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
+                  child: CaptchaImage(
+                    key: ValueKey(state.loginHash!.captchaHash),
+                    imageUrl: state.loginHash!.captchaImageUrl!,
+                    onRefresh: () {
+                      verifyCodeController.clear();
+                      context.read<AuthenticationBloc>().add(AuthenticationFetchLoginHashRequested());
+                    },
+                  ),
+                ),
+              ],
+            ),
+            sizedBoxW12H12,
+          ],
           InputDecorator(
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.question_mark_outlined),
@@ -189,10 +195,9 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
                     _question = newValue;
                   });
                 },
-                items:
-                    _loginQuestions.map((value) {
-                      return DropdownMenuItem<String>(value: value, child: Text(value));
-                    }).toList(),
+                items: _loginQuestions.map((value) {
+                  return DropdownMenuItem<String>(value: value, child: Text(value));
+                }).toList(),
               ),
             ),
           ),
@@ -233,7 +238,6 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
     verifyCodeController = TextEditingController();
     loginFieldFocus = FocusNode();
     passwordFieldFocus = FocusNode();
-    captchaImageController = CaptchaImageController();
 
     if (widget.username != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => passwordFieldFocus.requestFocus());
@@ -248,7 +252,6 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
     verifyCodeController.dispose();
     loginFieldFocus.dispose();
     passwordFieldFocus.dispose();
-    captchaImageController.dispose();
     super.dispose();
   }
 
@@ -274,7 +277,6 @@ class _LoginFormState extends State<LoginForm> with LoggerMixin {
           }
           context.read<AutoNotificationCubit>().resume('login success');
         } else if (state.status == AuthenticationStatus.failure) {
-          captchaImageController.reload();
           verifyCodeController.clear();
           context.read<AutoNotificationCubit>().resume('login failure');
         }

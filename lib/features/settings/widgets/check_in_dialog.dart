@@ -4,6 +4,8 @@ import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/features/checkin/models/models.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
+import 'package:tsdm_client/widgets/selectable_list_tile.dart';
 
 /// Dialog to let user select a checkin feeling.
 class CheckinFeelingDialog extends StatelessWidget {
@@ -15,29 +17,20 @@ class CheckinFeelingDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true,
+    return CustomAlertDialog.sync(
       title: Text(context.t.settingsPage.checkinSection.feeling),
-      content: SingleChildScrollView(
-        child: Column(
-          children:
-              CheckinFeeling.values
-                  .map(
-                    (e) => RadioListTile(
-                      title: Text(e.translate(context)),
-                      onChanged: (value) async {
-                        if (value == null) {
-                          return;
-                        }
-                        Navigator.of(context).pop(value);
-                      },
-                      value: e.toString(),
-                      groupValue: defaultFeeling,
-                    ),
-                  )
-                  .toList(),
-        ),
+      content: Column(
+        children: CheckinFeeling.values
+            .map(
+              (e) => SelectableListTile(
+                title: Text(e.translate(context)),
+                onTap: () async => Navigator.of(context).pop(e.toString()),
+                selected: defaultFeeling == e.toString(),
+              ),
+            )
+            .toList(),
       ),
+      contentPadding: EdgeInsets.zero,
     );
   }
 }
@@ -77,8 +70,7 @@ class _CheckinMessageDialogState extends State<CheckinMessageDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true,
+    return CustomAlertDialog.sync(
       title: Text(context.t.settingsPage.checkinSection.anythingToSay),
       content: Row(
         mainAxisSize: MainAxisSize.min,

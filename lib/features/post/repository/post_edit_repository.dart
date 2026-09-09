@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/fp.dart';
+import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/features/post/models/models.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/providers/net_client_provider/net_client_provider.dart';
@@ -90,13 +91,18 @@ final class PostEditRepository with LoggerMixin {
     final resp = respEither.unwrap();
     // When post succeed, server responses 301.
     // If we got a 200, likely we ran into some error.
-    if (resp.statusCode == HttpStatus.ok) {
-      final document = parseHtmlDocument(resp.data as String);
-      return left(
-        PostEditFailedToUploadResult(document.querySelector('div#messagetext > p')?.innerText ?? 'unknown error'),
-      );
+    //
+    // When using native http, or say if we are on Android, whe same post requests returns different status code which
+    // is normally a 200 response. That's weired, but pass it, anyway.
+    //
+    // Now we do a more permissive check, reply on message text info more than http status code.
+    final document = parseHtmlDocument(resp.data as String);
+    final messageTextNode = document.querySelector('div#messagetext > p');
+    if (messageTextNode != null) {
+      return left(PostEditFailedToUploadResult(messageTextNode.innerText));
     }
-    if (resp.statusCode != HttpStatus.movedPermanently) {
+
+    if (resp.statusCode != HttpStatus.ok && resp.statusCode != HttpStatus.movedPermanently) {
       return left(HttpRequestFailedException(resp.statusCode));
     }
 
@@ -127,26 +133,30 @@ final class PostEditRepository with LoggerMixin {
         return Right(value.headers!.value(HttpHeaders.locationHeader)!);
       case Left(:final value):
         return left(value);
-      case Right(:final value) when value.statusCode == HttpStatus.ok:
-        return left(
-          ThreadPublishFailedException(
-            HttpStatus.ok,
-            message: parseHtmlDocument(value.data as String).querySelector('div#messagetext > p')?.innerText,
-          ),
-        );
-      case Right(:final value) when value.statusCode != HttpStatus.movedPermanently:
-        return left(ThreadPublishFailedException(value.statusCode!));
       case Right(:final value):
-        if (value.headers.map.containsKey(HttpHeaders.locationHeader)) {
-          error('location header not found in response');
-          return left(ThreadPublishLocationNotFoundException());
+        final doc = parseHtmlDocument(value.data as String);
+        final messageTextNode = doc.querySelector('div#messagetext > p');
+        if (messageTextNode != null) {
+          return left(ThreadPublishFailedException(value.statusCode!, message: messageTextNode.innerText));
         }
+
+        // On Android platform, redirect is handled and resp body is thread data, find tid in head > link.
+        //
+        // On other platforms, redirect is not handled the response is a 301 redirect and location header have
+        // published thread url.
+
         final locations = value.headers.map[HttpHeaders.locationHeader];
-        if (locations?.isEmpty ?? true) {
-          error('empty location header');
-          return left(ThreadPublishLocationNotFoundException());
+        if (locations?.isNotEmpty ?? false) {
+          // Forward thread url in location.
+          return right(locations!.first);
         }
-        return right(locations!.first);
+
+        final tid = doc.head?.querySelector('link')?.attributes['href']?.tryParseAsUri()?.queryParameters['tid'];
+        if (tid != null) {
+          // Forward thread url in head > link.
+          return right('$baseUrl/forum.php?mod=viewthread&tid=$tid');
+        }
+        return left(ThreadPublishLocationNotFoundException());
     }
   });
 }

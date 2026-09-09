@@ -1,12 +1,15 @@
 import 'package:easy_refresh/easy_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/features/my_thread/bloc/my_thread_bloc.dart';
 import 'package:tsdm_client/features/my_thread/repository/my_thread_repository.dart';
+import 'package:tsdm_client/features/need_login/view/need_login_page.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/widgets/card/thread_card/thread_card.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 
 /// Page to show the threads and replies published by current logged user.
 class MyThreadPage extends StatefulWidget {
@@ -25,7 +28,7 @@ class _MyThreadPageState extends State<MyThreadPage> with SingleTickerProviderSt
 
   Widget _buildThreadTab(BuildContext context, MyThreadState state) {
     if (state.status == MyThreadStatus.loading || state.refreshingThread) {
-      return const Center(child: CircularProgressIndicator());
+      return const CenteredCircularIndicator();
     }
     _threadRefreshController
       ..finishRefresh()
@@ -68,7 +71,7 @@ class _MyThreadPageState extends State<MyThreadPage> with SingleTickerProviderSt
 
   Widget _buildReplyTab(BuildContext context, MyThreadState state) {
     if (state.status == MyThreadStatus.loading || state.refreshingReply) {
-      return const Center(child: CircularProgressIndicator());
+      return const CenteredCircularIndicator();
     }
     _replyRefreshController
       ..finishRefresh()
@@ -132,8 +135,8 @@ class _MyThreadPageState extends State<MyThreadPage> with SingleTickerProviderSt
       providers: [
         RepositoryProvider(create: (_) => MyThreadRepository()),
         BlocProvider(
-          create:
-              (context) => MyThreadBloc(myThreadRepository: context.repo())..add(MyThreadLoadInitialDataRequested()),
+          create: (context) =>
+              MyThreadBloc(myThreadRepository: context.repo())..add(MyThreadLoadInitialDataRequested()),
         ),
       ],
       child: BlocBuilder<MyThreadBloc, MyThreadState>(
@@ -141,20 +144,30 @@ class _MyThreadPageState extends State<MyThreadPage> with SingleTickerProviderSt
           return Scaffold(
             appBar: AppBar(
               title: Text(context.t.myThreadPage.title),
-              bottom: TabBar(
-                controller: _tabController,
-                tabs: [
-                  Tab(child: Text(context.t.myThreadPage.threadTab.title)),
-                  Tab(child: Text(context.t.myThreadPage.replyTab.title)),
-                ],
-              ),
+              bottom: state.status == MyThreadStatus.needLogin
+                  ? null
+                  : TabBar(
+                      controller: _tabController,
+                      tabs: [
+                        Tab(child: Text(context.t.myThreadPage.threadTab.title)),
+                        Tab(child: Text(context.t.myThreadPage.replyTab.title)),
+                      ],
+                    ),
             ),
             body: SafeArea(
               bottom: false,
-              child: TabBarView(
-                controller: _tabController,
-                children: [_buildThreadTab(context, state), _buildReplyTab(context, state)],
-              ),
+              child: state.status == MyThreadStatus.needLogin
+                  ? NeedLoginPage(
+                      backUri: GoRouterState.of(context).uri,
+                      needPop: true,
+                      popCallback: (context) {
+                        context.read<MyThreadBloc>().add(MyThreadLoadInitialDataRequested());
+                      },
+                    )
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [_buildThreadTab(context, state), _buildReplyTab(context, state)],
+                    ),
             ),
           );
         },

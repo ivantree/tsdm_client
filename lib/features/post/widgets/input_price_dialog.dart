@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// Show a dialog to let user input a price for current thread.
 ///
 /// Only use this when setting price for thread.
-Future<int?> showInputPriceDialog(BuildContext context, int? initialPrice, int? maxPrice) async =>
-    showDialog<int>(context: context, builder: (_) => _InputPriceDialog(initialPrice, maxPrice));
+Future<int?> showInputPriceDialog(BuildContext context, int? initialPrice, int? maxPrice) async => showDialog<int>(
+  context: context,
+  builder: (_) => RootPage(DialogPaths.inputPrice, _InputPriceDialog(initialPrice, maxPrice)),
+);
 
 class _InputPriceDialog extends StatefulWidget {
   const _InputPriceDialog(this.initialPrice, this.maxPrice);
@@ -47,7 +52,7 @@ class _InputPriceDialogState extends State<_InputPriceDialog> {
   @override
   Widget build(BuildContext context) {
     final tr = context.t.postEditPage.priceDialog;
-    return AlertDialog(
+    return CustomAlertDialog.sync(
       title: Text(tr.title),
       content: Form(
         key: formKey,

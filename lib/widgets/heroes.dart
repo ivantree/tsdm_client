@@ -103,14 +103,16 @@ class _HeroUserAvatarState extends State<HeroUserAvatar> {
         .response
         .where((e) => e.respType == ImageCacheResponseType.userAvatar && e.imageId == widget.username)
         .listen((resp) async => onImageCachedResponse(resp));
-    getIt.get<ImageCacheProvider>().queryCacheState(
-      ImageCacheUserAvatarRequest(username: widget.username, imageUrl: widget.avatarUrl ?? ''),
+    unawaited(
+      getIt.get<ImageCacheProvider>().queryUserAvatarCacheState(
+        ImageCacheUserAvatarRequest(username: widget.username, imageUrl: widget.avatarUrl ?? ''),
+      ),
     );
   }
 
   @override
   void dispose() {
-    imageCacheSub?.cancel();
+    unawaited(imageCacheSub?.cancel());
     super.dispose();
   }
 
@@ -128,9 +130,8 @@ class _HeroUserAvatarState extends State<HeroUserAvatar> {
     }
     return Hero(
       tag: widget.heroTag ?? 'UserAvatar_${widget.username}',
-      flightShuttleBuilder:
-          (_, __, ___, ____, toHeroContext) =>
-              DefaultTextStyle(style: DefaultTextStyle.of(toHeroContext).style, child: toHeroContext.widget),
+      flightShuttleBuilder: (_, _, _, _, toHeroContext) =>
+          DefaultTextStyle(style: DefaultTextStyle.of(toHeroContext).style, child: toHeroContext.widget),
       child: avatar,
     );
   }
@@ -151,7 +152,10 @@ Future<T?> showHeroDialog<T>(BuildContext context, RoutePageBuilder builder) asy
       pageBuilder: (context, animation, secondaryAnimation) => builder(context, animation, secondaryAnimation),
       // fullscreenDialog: true,
       transitionsBuilder: (context, ani1, ani2, child) {
-        return FadeTransition(opacity: CurveTween(curve: Curves.easeIn).animate(ani1), child: child);
+        return FadeTransition(
+          opacity: CurveTween(curve: Curves.easeIn).animate(ani1),
+          child: child,
+        );
       },
     ),
   );

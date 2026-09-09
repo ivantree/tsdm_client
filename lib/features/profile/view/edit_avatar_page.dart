@@ -9,6 +9,7 @@ import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
 import 'package:tsdm_client/widgets/cached_image/cached_image.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/section_title_text.dart';
 import 'package:tsdm_client/widgets/tips.dart';
 
@@ -56,7 +57,10 @@ class _EditAvatarPageState extends State<EditAvatarPage> {
         ],
         Padding(
           padding: edgeInsetsL12R12,
-          child: TextField(controller: _avatarController, decoration: InputDecoration(labelText: tr.avatarUrl)),
+          child: TextField(
+            controller: _avatarController,
+            decoration: InputDecoration(labelText: tr.avatarUrl),
+          ),
         ),
         sizedBoxW12H12,
         Padding(
@@ -65,24 +69,22 @@ class _EditAvatarPageState extends State<EditAvatarPage> {
             children: [
               Expanded(
                 child: FilledButton.tonal(
-                  onPressed:
-                      state.status == EditAvatarStatus.uploading || _avatarController.text.isEmpty
-                          ? null
-                          : () => setState(() => _previewUrl = _avatarController.text),
+                  onPressed: state.status == EditAvatarStatus.uploading || _avatarController.text.isEmpty
+                      ? null
+                      : () => setState(() => _previewUrl = _avatarController.text),
                   child: Text(tr.preview),
                 ),
               ),
               sizedBoxW8H8,
               Expanded(
                 child: FilledButton(
-                  onPressed:
-                      state.formHash == null || state.status == EditAvatarStatus.uploading
-                          ? null
-                          : () {
-                            context.read<EditAvatarBloc>().add(
-                              EditAvatarUploadRequested(avatarUrl: _avatarController.text, formHash: state.formHash!),
-                            );
-                          },
+                  onPressed: state.formHash == null || state.status == EditAvatarStatus.uploading
+                      ? null
+                      : () {
+                          context.read<EditAvatarBloc>().add(
+                            EditAvatarUploadRequested(avatarUrl: _avatarController.text, formHash: state.formHash!),
+                          );
+                        },
                   child: Text(tr.submit),
                 ),
               ),
@@ -142,7 +144,7 @@ class _EditAvatarPageState extends State<EditAvatarPage> {
         },
         builder: (context, state) {
           final body = switch (state.status) {
-            EditAvatarStatus.initial || EditAvatarStatus.loading => const Center(child: CircularProgressIndicator()),
+            EditAvatarStatus.initial || EditAvatarStatus.loading => const CenteredCircularIndicator(),
             EditAvatarStatus.waitingForUpload ||
             EditAvatarStatus.success ||
             EditAvatarStatus.uploading => _buildContent(context, state),

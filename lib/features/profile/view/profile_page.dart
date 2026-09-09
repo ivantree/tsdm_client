@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:dart_bbcode_web_colors/dart_bbcode_web_colors.dart';
 import 'package:easy_refresh/easy_refresh.dart';
@@ -33,9 +32,11 @@ import 'package:tsdm_client/utils/show_dialog.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
 import 'package:tsdm_client/widgets/attr_block.dart';
 import 'package:tsdm_client/widgets/cached_image/cached_image.dart';
+import 'package:tsdm_client/widgets/cached_image/cached_image_provider.dart';
 import 'package:tsdm_client/widgets/debounce_buttons.dart';
 import 'package:tsdm_client/widgets/heroes.dart';
 import 'package:tsdm_client/widgets/icon_chip.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/medal_group_view.dart';
 import 'package:tsdm_client/widgets/notice_button.dart';
 import 'package:tsdm_client/widgets/obscure_list_tile.dart';
@@ -47,7 +48,7 @@ import 'package:universal_html/parsing.dart';
 const _appBarBackgroundTopPadding = 44.0;
 const _appBarBackgroundImageHeight = 80.0;
 const _appBarAvatarHeight = 80.0;
-const _appBarExpandHeight = _appBarBackgroundImageHeight + _appBarAvatarHeight + _appBarBackgroundTopPadding;
+const double _appBarExpandHeight = _appBarBackgroundImageHeight + _appBarAvatarHeight + _appBarBackgroundTopPadding;
 
 const _groupAvatarHeight = 100.0;
 
@@ -68,7 +69,7 @@ const _groupAvatarHeight = 100.0;
 /// lv2  偶尔看看I     3天
 /// lv1  初来乍到      1天
 /// ```
-const _checkinNextLevelExp = [
+const List<int> _checkinNextLevelExp = [
   1 - 0,
   3 - 1,
   7 - 3,
@@ -82,7 +83,16 @@ const _checkinNextLevelExp = [
   300 - 250,
 ];
 
-enum _ProfileActions { viewNotification, checkin, viewPoints, switchUserGroup, logout, editAvatar }
+enum _ProfileActions {
+  viewNotification,
+  checkin,
+  viewPoints,
+  switchUserGroup,
+  switchTitle,
+  editProfile,
+  logout,
+  editAvatar,
+}
 
 /// Page of user profile.
 class ProfilePage extends StatefulWidget {
@@ -158,6 +168,16 @@ class _ProfilePageState extends State<ProfilePage> {
                   return;
                 }
                 await context.pushNamed(ScreenPaths.switchUserGroup);
+              case _ProfileActions.switchTitle:
+                if (logout) {
+                  return;
+                }
+                await context.pushNamed(ScreenPaths.switchTitle);
+              case .editProfile:
+                if (logout) {
+                  return;
+                }
+                await context.pushNamed(ScreenPaths.editUserProfile);
               case _ProfileActions.logout:
                 final logout = await showQuestionDialog(
                   context: context,
@@ -175,67 +195,86 @@ class _ProfilePageState extends State<ProfilePage> {
                 await context.pushNamed(ScreenPaths.editAvatar);
             }
           },
-          itemBuilder:
-              (context) => [
-                PopupMenuItem(
-                  value: _ProfileActions.viewNotification,
-                  child: Row(
-                    children: [const NoticeIcon(), sizedBoxPopupMenuItemIconSpacing, Text(context.t.noticePage.title)],
-                  ),
-                ),
-                PopupMenuItem(
-                  enabled: !inCheckin,
-                  value: _ProfileActions.checkin,
-                  child: Row(
-                    children: [
-                      const CheckinButton(useIcon: true),
-                      sizedBoxPopupMenuItemIconSpacing,
-                      Text(tr.checkin.title),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: _ProfileActions.editAvatar,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.edit_outlined),
-                      sizedBoxPopupMenuItemIconSpacing,
-                      Text(context.t.editAvatarPage.title),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: _ProfileActions.viewPoints,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.show_chart_outlined),
-                      sizedBoxPopupMenuItemIconSpacing,
-                      Text(tr.statistics.title),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: _ProfileActions.switchUserGroup,
-                  child: Row(
-                    children: [
-                      const Icon(Symbols.change_circle),
-                      sizedBoxPopupMenuItemIconSpacing,
-                      Text(context.t.switchUserGroupPage.title),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  enabled: !logout,
-                  value: _ProfileActions.logout,
-                  child: Row(
-                    children: [
-                      DebounceIcon(icon: const Icon(Icons.logout_outlined), shouldDebounce: logout),
-                      sizedBoxPopupMenuItemIconSpacing,
-                      Text(tr.logout),
-                    ],
-                  ),
-                ),
-              ],
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: _ProfileActions.viewNotification,
+              child: Row(
+                children: [const NoticeIcon(), sizedBoxPopupMenuItemIconSpacing, Text(context.t.noticePage.title)],
+              ),
+            ),
+            PopupMenuItem(
+              enabled: !inCheckin,
+              value: _ProfileActions.checkin,
+              child: Row(
+                children: [
+                  const CheckinButton(useIcon: true),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(tr.checkin.title),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: .editProfile,
+              child: Row(
+                children: [
+                  const Icon(Symbols.person_edit),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(context.t.editUserProfilePage.title),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: _ProfileActions.editAvatar,
+              child: Row(
+                children: [
+                  const Icon(Symbols.familiar_face_and_zone),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(context.t.editAvatarPage.title),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: _ProfileActions.viewPoints,
+              child: Row(
+                children: [
+                  const Icon(Icons.show_chart_outlined),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(tr.statistics.title),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: _ProfileActions.switchUserGroup,
+              child: Row(
+                children: [
+                  const Icon(Symbols.change_circle),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(context.t.switchUserGroupPage.title),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: _ProfileActions.switchTitle,
+              child: Row(
+                children: [
+                  const Icon(Symbols.badge),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(context.t.myTitlesPage.title),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              enabled: !logout,
+              value: _ProfileActions.logout,
+              child: Row(
+                children: [
+                  DebounceIcon(icon: const Icon(Icons.logout_outlined), shouldDebounce: logout),
+                  sizedBoxPopupMenuItemIconSpacing,
+                  Text(tr.logout),
+                ],
+              ),
+            ),
+          ],
         ),
       ];
     } else {
@@ -249,12 +288,11 @@ class _ProfilePageState extends State<ProfilePage> {
         IconButton(
           icon: const Icon(Icons.email_outlined),
           tooltip: context.t.postCard.profileDialog.pmTooltip,
-          onPressed:
-              () async => context.pushNamed(
-                ScreenPaths.chat,
-                pathParameters: {'uid': widget.uid ?? userProfile.uid!},
-                extra: <String, dynamic>{'username': userProfile.username},
-              ),
+          onPressed: () async => context.pushNamed(
+            ScreenPaths.chat,
+            pathParameters: {'uid': widget.uid ?? userProfile.uid!},
+            extra: <String, dynamic>{'username': userProfile.username},
+          ),
         ),
       ];
     }
@@ -275,7 +313,6 @@ class _ProfilePageState extends State<ProfilePage> {
         minRadius: _appBarAvatarHeight / 2,
       ),
     );
-
     if (userProfile.avatarUrl != null) {
       flexSpace = Stack(
         // Disable clip, let profile avatar show outside the stack.
@@ -283,27 +320,25 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           // Background blurred image.
           Positioned.fill(
-            // Why we can not add padding here?
-            child: Column(
-              children: [
-                // The height of color box is decided by the sigma in image filtered.
-                Container(
-                  color: Theme.of(context).colorScheme.surfaceContainerLowest,
-                  height: _appBarBackgroundTopPadding,
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: CachedImageProvider(userProfile.avatarUrl!),
+                  fit: .fitWidth,
+                  isAntiAlias: true,
                 ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ImageFiltered(
-                          imageFilter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                          child: CachedImage(userProfile.avatarUrl!, fit: BoxFit.cover, enableAnimation: false),
-                        ),
-                      ),
-                    ],
-                  ),
+              ),
+              foregroundDecoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.surfaceContainerLowest.withValues(alpha: 0.6),
+                    Theme.of(context).colorScheme.surfaceContainerLowest,
+                  ],
+                  begin: .topCenter,
+                  end: .bottomCenter,
+                  stops: const [0.0, 0.55],
                 ),
-              ],
+              ),
             ),
           ),
           // Background color under avatar, height is half of avatar height.
@@ -378,8 +413,10 @@ class _ProfilePageState extends State<ProfilePage> {
       // Max level
       checkinLevelNumber = 11;
     } else {
-      checkinLevelNumber =
-          _checkinLevelNumberRe.firstMatch(userProfile.checkinLevel!)?.namedGroup('level')?.parseToInt();
+      checkinLevelNumber = _checkinLevelNumberRe
+          .firstMatch(userProfile.checkinLevel!)
+          ?.namedGroup('level')
+          ?.parseToInt();
     }
     if (userProfile.checkinNextLevelDays != null) {
       totalDays = userProfile.checkinDaysCount! + userProfile.checkinNextLevelDays!;
@@ -491,8 +528,9 @@ class _ProfilePageState extends State<ProfilePage> {
       moderatorGroupDoc?.querySelector('font')?.attributes['color'] ?? '',
     );
     if (moderatorColorValue.isValid) {
-      moderatorGroupNameColor =
-          inDark ? Color(moderatorColorValue.colorValue).adaptiveDark() : Color(moderatorColorValue.colorValue);
+      moderatorGroupNameColor = inDark
+          ? Color(moderatorColorValue.colorValue).adaptiveDark()
+          : Color(moderatorColorValue.colorValue);
     } else {
       moderatorGroupNameColor = null;
     }
@@ -583,6 +621,7 @@ class _ProfilePageState extends State<ProfilePage> {
             // Email verify state.
             IconButton(
               icon: const Icon(Icons.email_outlined),
+              tooltip: userProfile.emailVerified ?? false ? tr.emailVerified : tr.emailNotVerified,
               onPressed: () async {
                 final content = userProfile.emailVerified ?? false ? tr.emailVerified : tr.emailNotVerified;
                 showSnackBar(context: context, message: content);
@@ -591,6 +630,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           IconButton(
             icon: const Icon(Icons.photo_camera_outlined),
+            tooltip: userProfile.videoVerified ?? false ? tr.videoVerified : tr.videoNotVerified,
             onPressed: () async {
               final content = userProfile.videoVerified ?? false ? tr.videoVerified : tr.videoNotVerified;
               showSnackBar(context: context, message: content);
@@ -600,12 +640,11 @@ class _ProfilePageState extends State<ProfilePage> {
           TextButton.icon(
             icon: const Icon(Icons.group_outlined),
             label: Text(friendsCount),
-            onPressed:
-                friendsPage != null
-                    ? () async {
-                      await context.dispatchAsUrl(friendsPage);
-                    }
-                    : null,
+            onPressed: friendsPage != null
+                ? () async {
+                    await context.dispatchAsUrl(friendsPage);
+                  }
+                : null,
           ),
           if (userProfile.gender != null)
             IconChip(
@@ -709,16 +748,15 @@ class _ProfilePageState extends State<ProfilePage> {
         Wrap(
           spacing: 4,
           runSpacing: 4,
-          children:
-              userProfile.mangedForums!
-                  .map(
-                    (e) => ActionChip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(e.name),
-                      onPressed: () async => context.pushNamed(ScreenPaths.forum, pathParameters: {'fid': '${e.fid}'}),
-                    ),
-                  )
-                  .toList(),
+          children: userProfile.mangedForums!
+              .map(
+                (e) => ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(e.name),
+                  onPressed: () async => context.pushNamed(ScreenPaths.forum, pathParameters: {'fid': '${e.fid}'}),
+                ),
+              )
+              .toList(),
         ),
       ],
 
@@ -798,6 +836,8 @@ class _ProfilePageState extends State<ProfilePage> {
           // Here is dynamic and not translated.
           if (userProfile.specialAttr != null && userProfile.specialAttrName != null)
             AttrBlock(name: userProfile.specialAttrName!, value: userProfile.specialAttr!),
+          if (userProfile.specialAttr2 != null && userProfile.specialAttrName2 != null)
+            AttrBlock(name: userProfile.specialAttrName2!, value: userProfile.specialAttr2!),
         ],
       ),
     ];
@@ -820,21 +860,20 @@ class _ProfilePageState extends State<ProfilePage> {
       controller: _refreshController,
       scrollController: _scrollController,
       header: const MaterialHeader(),
-      onRefresh:
-          () => context.read<ProfileBloc>().add(ProfileRefreshRequested(uid: widget.uid, username: widget.username)),
-      childBuilder:
-          (context, physics) => CustomScrollView(
-            controller: _scrollController,
-            physics: physics,
-            slivers: [
-              // Real app bar when data loaded.
-              _buildSliverAppBar(context, state, logout: logout),
-              SliverPadding(
-                padding: edgeInsetsL12T4R12,
-                sliver: SliverList(delegate: SliverChildListDelegate(_buildSliverContent(context, state))),
-              ),
-            ],
+      onRefresh: () =>
+          context.read<ProfileBloc>().add(ProfileRefreshRequested(uid: widget.uid, username: widget.username)),
+      childBuilder: (context, physics) => CustomScrollView(
+        controller: _scrollController,
+        physics: physics,
+        slivers: [
+          // Real app bar when data loaded.
+          _buildSliverAppBar(context, state, logout: logout),
+          SliverPadding(
+            padding: edgeInsetsL12T4R12,
+            sliver: SliverList(delegate: SliverChildListDelegate(_buildSliverContent(context, state))),
           ),
+        ],
+      ),
     );
   }
 
@@ -856,11 +895,10 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create:
-          (context) => ProfileBloc(
-            profileRepository: RepositoryProvider.of<ProfileRepository>(context),
-            authenticationRepository: RepositoryProvider.of<AuthenticationRepository>(context),
-          )..add(ProfileLoadRequested(username: widget.username, uid: widget.uid)),
+      create: (context) => ProfileBloc(
+        profileRepository: RepositoryProvider.of<ProfileRepository>(context),
+        authenticationRepository: RepositoryProvider.of<AuthenticationRepository>(context),
+      )..add(ProfileLoadRequested(username: widget.username, uid: widget.uid)),
       child: BlocBuilder<ProfileBloc, ProfileState>(
         builder: (context, state) {
           // Default AppBar only use when loading data or failed to load data.
@@ -877,7 +915,7 @@ class _ProfilePageState extends State<ProfilePage> {
           // Main content of user profile.
           // Contain a sliver version app bar to show when data loaded.
           final body = switch (state.status) {
-            ProfileStatus.initial || ProfileStatus.loading => const Center(child: CircularProgressIndicator()),
+            ProfileStatus.initial || ProfileStatus.loading => const CenteredCircularIndicator(),
             ProfileStatus.needLogin => NeedLoginPage(
               backUri: GoRouterState.of(context).uri,
               needPop: true,
@@ -887,7 +925,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             ProfileStatus.failure => buildRetryButton(context, () {
               context.read<ProfileBloc>().add(ProfileLoadRequested(username: widget.username, uid: widget.uid));
-            }),
+            }, message: state.failedToLogoutReason?.message),
             ProfileStatus.success || ProfileStatus.loggingOut => _buildContent(
               context,
               state,
@@ -896,7 +934,10 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           };
 
-          return Scaffold(appBar: appBar, body: SafeArea(top: false, bottom: false, child: body));
+          return Scaffold(
+            appBar: appBar,
+            body: SafeArea(top: false, bottom: false, child: body),
+          );
         },
       ),
     );

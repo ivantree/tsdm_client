@@ -148,6 +148,7 @@ class Post with PostMappable {
   /// Build [Post] from [element] that has attribute id "post_$postID".
   static Post? fromPostNode(uh.Element element, int page) {
     final trRootNode = element.querySelector('table > tbody > tr');
+    final postDataNode = trRootNode?.querySelector('td:nth-child(2)');
     final postID = element.id.replaceFirst('post_', '');
     if (postID.isEmpty) {
       talker.error('failed to build post: empty post ID');
@@ -156,13 +157,17 @@ class Post with PostMappable {
     final avatarId = 'ts_avatar_$postID';
     // <td class="pls">
     final postInfoNode = trRootNode?.querySelector('td:nth-child(1) > div#$avatarId');
+    final x5AuthorNode = postDataNode
+        ?.querySelectorAll('div.authi > a[href*="mod=space"][href*="uid="]')
+        .firstWhereOrNull((node) => node.innerText.trim().isNotEmpty);
     // <td class="plc tsdm_ftc">
-    final postAuthorName = postInfoNode?.querySelector('div')?.firstEndDeepText();
-    final postAuthorUrl = postInfoNode?.querySelector('div.avatar > a')?.attributes['href'];
-    final postAuthorUid = postAuthorUrl?.split('uid=').elementAtOrNull(1);
+    final legacyAuthorName = postInfoNode?.querySelector('div')?.firstEndDeepText()?.trim();
+    final postAuthorName = legacyAuthorName?.isNotEmpty ?? false ? legacyAuthorName : x5AuthorNode?.innerText.trim();
+    final postAuthorUrl =
+        postInfoNode?.querySelector('div.avatar > a')?.attributes['href'] ?? x5AuthorNode?.attributes['href'];
+    final postAuthorUid = postAuthorUrl?.split('uid=').elementAtOrNull(1)?.split('&').firstOrNull;
     final postAuthorAvatarNode = postInfoNode?.querySelector('div.avatar > a > img');
-    final postAuthorAvatarUrl =
-        postAuthorAvatarNode?.attributes['data-original'] ?? postAuthorAvatarNode?.attributes['src'];
+    final postAuthorAvatarUrl = postAuthorAvatarNode?.imageUrl();
     final postAuthor = User(
       name: postAuthorName ?? '',
       uid: postAuthorUid,
@@ -175,14 +180,11 @@ class Post with PostMappable {
       return null;
     }
 
-    final postDataNode = trRootNode?.querySelector('td:nth-child(2)');
     final postPublishTimeNode = postDataNode?.querySelector('#authorposton$postID');
     // Recent post can grep [publishTime] in the the "title" attribute
     // in first child.
     // Otherwise fallback split time string.
-    final postPublishTime =
-        postPublishTimeNode?.querySelector('span')?.attributes['title']?.parseToDateTimeUtc8() ??
-        postPublishTimeNode?.text?.substring(4).parseToDateTimeUtc8();
+    final postPublishTime = postPublishTimeNode?.dateTime();
     // Sometimes the #postmessage_ID ID does not match postID.
     // e.g. tid=1184238
     // Use div.pcb to match it.
@@ -210,7 +212,9 @@ class Post with PostMappable {
     //
     // Now we only search for the <div class="pcb"> node.
     final postData =
-        postDataNode?.querySelector('div.pcb')?.innerHtml ?? postDataNode?.querySelector('div.pcbs')?.innerHtml;
+        postDataNode?.querySelector('[id^="postmessage_"]')?.innerHtml ??
+        postDataNode?.querySelector('div.pcb')?.innerHtml ??
+        postDataNode?.querySelector('div.pcbs')?.innerHtml;
 
     // Locked block in this post.
     //
@@ -219,20 +223,19 @@ class Post with PostMappable {
     //
     // Should not build locked with points which must be built in "postmessage"
     // munching.
-    final locked =
-        postDataNode
-            ?.querySelectorAll('div.locked')
-            .where((e) => e.querySelector('span') == null)
-            .map(
-              (e) => Locked.fromLockDivNode(
-                e,
-                allowWithPoints: false,
-                allowWithReply: false,
-                allowWithAuthor: false,
-                allowWithBlocked: false,
-              ),
-            )
-            .toList();
+    final locked = postDataNode
+        ?.querySelectorAll('div.locked')
+        .where((e) => e.querySelector('span') == null)
+        .map(
+          (e) => Locked.fromLockDivNode(
+            e,
+            allowWithPoints: false,
+            allowWithReply: false,
+            allowWithAuthor: false,
+            allowWithBlocked: false,
+          ),
+        )
+        .toList();
 
     final hasPoll = postDataNode?.querySelector('form#poll') != null;
 
@@ -247,13 +250,12 @@ class Post with PostMappable {
     //           'div > em > a[href*="action=reply"]',
     //
     // Should use a more permissive one.
-    final replyAction =
-        element
-            .querySelector(
-              'table > tbody > tr:nth-child(2) > td.tsdm_replybar div.pob em > '
-              'a[href*="action=reply"]',
-            )
-            ?.firstHref();
+    final replyAction = element
+        .querySelector(
+          'table > tbody > tr:nth-child(2) > td.tsdm_replybar div.pob em > '
+          'a[href*="action=reply"]',
+        )
+        ?.firstHref();
 
     final rateNode = postDataNode?.querySelector('div.pct > div.pcb > dl.rate');
     final rate = Rate.fromRateLogNode(rateNode);
@@ -266,8 +268,10 @@ class Post with PostMappable {
     // * If current post is not the first floor, rate action is in <div class="pob cl"><p>...</p></div>
     // Allow to be empty.
     String? rateAction;
-    rateAction =
-        element.querySelector('table  div.pob.cl p > a[onclick*="action=rate"]')?._parseRateAction()?.prependHost();
+    rateAction = element
+        .querySelector('table  div.pob.cl p > a[onclick*="action=rate"]')
+        ?._parseRateAction()
+        ?.prependHost();
 
     rateAction ??= element.querySelector('div#fj > a[onclick*="action=rate"]')?._parseRateAction()?.prependHost();
 
@@ -275,12 +279,11 @@ class Post with PostMappable {
 
     // Url to edit the post is also in the `<div id=fj>` node.
     // We can only find it by the content text "编辑"。
-    final editUrl =
-        element
-            .querySelectorAll('div#fj > a')
-            .firstWhereOrNull((e) => e.firstEndDeepText() == '编辑')
-            ?.attributes['href']
-            ?.prependHost();
+    final editUrl = element
+        .querySelectorAll('div#fj > a')
+        .firstWhereOrNull((e) => e.firstEndDeepText() == '编辑')
+        ?.attributes['href']
+        ?.prependHost();
 
     // Check for last edit status.
     final lastEditText = element.querySelector('i.pstatus')?.innerText.trim().split(' ');
@@ -312,8 +315,11 @@ class Post with PostMappable {
     final isDraft = element.querySelector('a.psave') != null;
 
     // Medals used by the current posts' author.
-    final postMedals =
-        element.querySelectorAll('div.md_ctrl > a > img').map(PostMedal.fromImg).whereType<PostMedal>().toList();
+    final postMedals = element
+        .querySelectorAll('div.md_ctrl > a > img')
+        .map(PostMedal.fromImg)
+        .whereType<PostMedal>()
+        .toList();
 
     // User group badge and optional second badge.
     final badge = element.querySelector('div#$avatarId > div.tsdm_norm_title > img')?.imageUrl();
@@ -378,6 +384,8 @@ class Post with PostMappable {
     final threadDataRootNode =
         // Style 5
         element.querySelector('div.bm > div') ??
+        // X5 no longer wraps post nodes in the legacy container.
+        element.children.firstWhereOrNull((child) => child.id.startsWith('post_')) ??
         // Some normal styles.
         element.childAtOrNull(2);
     var currentElement = threadDataRootNode;

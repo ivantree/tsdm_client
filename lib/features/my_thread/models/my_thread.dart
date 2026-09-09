@@ -75,7 +75,7 @@ class MyThread with MyThreadMappable {
   ///   </tr>
   /// </tbody>
   static MyThread? fromTr(uh.Element element) {
-    final titleNode = element.querySelector('th:nth-child(2) > a');
+    final titleNode = element.querySelector('th > a');
     if (titleNode == null) {
       talker.info('title node not found in page. Maybe user has never posted');
       return null;
@@ -84,7 +84,7 @@ class MyThread with MyThreadMappable {
     final url = titleNode.firstHref();
     final threadID = url?.uriQueryParameter('tid') ?? url?.uriQueryParameter('ptid');
 
-    final forumNode = element.querySelector('td:nth-child(3) > a');
+    final forumNode = element.querySelector('th + td > a');
     final forumName = forumNode?.firstEndDeepText();
     final forumUrl = forumNode?.firstHref();
 
@@ -94,11 +94,7 @@ class MyThread with MyThreadMappable {
     final latestReplyNode = element.querySelector('td.by');
     final latestReplyAuthorName = latestReplyNode?.querySelector('cite > a')?.firstEndDeepText();
     final latestReplyAuthorUrl = latestReplyNode?.querySelector('cite > a')?.firstHref();
-    final latestReplyTime =
-        // Within 7 days.
-        latestReplyNode?.querySelector('em > a > span')?.attributes['title']?.parseToDateTimeUtc8() ??
-        // More than 7 days ago.
-        latestReplyNode?.querySelector('em > a')?.firstEndDeepText()?.parseToDateTimeUtc8();
+    final latestReplyTime = latestReplyNode?.querySelector('em > a')?.dateTime();
     String? quotedMessage;
     if (element.classes.contains('bw0_all')) {
       quotedMessage = element.nextElementSibling?.querySelector('td.xg1')?.innerText.trim();

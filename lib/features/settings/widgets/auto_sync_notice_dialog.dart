@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// Dialog for user selecting a duration on auto sync notice feature.
 class AutoSyncNoticeDialog extends StatefulWidget {
@@ -55,8 +56,9 @@ class _AutoSyncNoticeDialogState extends State<AutoSyncNoticeDialog> {
   @override
   void initState() {
     super.initState();
-    _choiceIndex =
-        allTimes.contains(widget.currentSeconds) ? allTimes.indexOf(widget.currentSeconds).toDouble() : 600.0;
+    _choiceIndex = allTimes.contains(widget.currentSeconds)
+        ? allTimes.indexOf(widget.currentSeconds).toDouble()
+        : 600.0;
   }
 
   @override
@@ -67,12 +69,11 @@ class _AutoSyncNoticeDialogState extends State<AutoSyncNoticeDialog> {
 
     final currentTimeText = switch (time) {
       < 0 => context.t.general.never,
-      >= 0 && < 3600 => context.t.general.minutes(value: (time / 60).toInt()),
-      _ => context.t.general.hours(value: (time / 3600).toInt()),
+      >= 0 && < 3600 => context.t.general.minutes(value: time ~/ 60),
+      _ => context.t.general.hours(value: time ~/ 3600),
     };
 
-    return AlertDialog(
-      scrollable: true,
+    return CustomAlertDialog.sync(
       title: Text(tr.title),
       content: Column(
         children: [

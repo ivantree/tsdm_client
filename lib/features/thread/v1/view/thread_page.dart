@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,13 +9,16 @@ import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/extensions/string.dart';
+import 'package:tsdm_client/extensions/uri.dart';
 import 'package:tsdm_client/features/authentication/repository/authentication_repository.dart';
 import 'package:tsdm_client/features/forum/models/models.dart';
 import 'package:tsdm_client/features/jump_page/cubit/jump_page_cubit.dart';
 import 'package:tsdm_client/features/need_login/view/need_login_page.dart';
+import 'package:tsdm_client/features/settings/bloc/settings_bloc.dart';
 import 'package:tsdm_client/features/settings/repositories/settings_repository.dart';
 import 'package:tsdm_client/features/thread/v1/bloc/thread_bloc.dart';
 import 'package:tsdm_client/features/thread/v1/repository/thread_repository.dart';
+import 'package:tsdm_client/features/thread/v1/utils/dialog.dart';
 import 'package:tsdm_client/features/thread/v1/widgets/post_list.dart';
 import 'package:tsdm_client/features/thread_visit_history/bloc/thread_visit_history_bloc.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
@@ -27,7 +33,8 @@ import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
 import 'package:tsdm_client/widgets/card/error_card.dart';
 import 'package:tsdm_client/widgets/card/post_card/post_card.dart';
-import 'package:tsdm_client/widgets/list_app_bar.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
+import 'package:tsdm_client/widgets/list_app_bar/list_app_bar.dart';
 import 'package:tsdm_client/widgets/reply_bar/bloc/reply_bloc.dart';
 import 'package:tsdm_client/widgets/reply_bar/models/reply_types.dart';
 import 'package:tsdm_client/widgets/reply_bar/reply_bar.dart';
@@ -121,6 +128,88 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
 
   final _replyBarController = ReplyBarController();
 
+  Widget _buildBreadcrumbsRow(ThreadState state, double extraHeight) {
+    final infoTextStyle = Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.outline);
+
+    final infoTextHighlightStyle = Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(color: Theme.of(context).colorScheme.primary);
+
+    final breadFrags = state.breadcrumbs
+        .map(
+          (e) => [
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () async {
+                  final gid = e.link.tryGetQueryParameters()?['gid'];
+                  if (gid != null) {
+                    await context.pushNamed(
+                      ScreenPaths.forumGroup,
+                      pathParameters: {'gid': gid},
+                      queryParameters: {'title': e.description},
+                    );
+                    return;
+                  }
+                  await context.dispatchAsUrl(e.link.toString());
+                },
+                child: Text(e.description, style: infoTextHighlightStyle),
+              ),
+            ),
+            const Text(' > '),
+          ],
+        )
+        .flattenedToList;
+
+    return Padding(
+      padding: edgeInsetsL12R12.add(edgeInsetsB4),
+      child: DefaultTextStyle.merge(
+        style: infoTextStyle,
+        child: SizedBox(
+          height: 20 + extraHeight,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            children: <Widget>[
+              ...breadFrags,
+              if (state.threadType?.typeID != null && state.fid != null)
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () async => context.pushNamed(
+                      ScreenPaths.forum,
+                      pathParameters: {'fid': '${state.fid}'},
+                      queryParameters: {
+                        'threadTypeName': state.threadType?.name,
+                        'threadTypeID': '${state.threadType?.typeID}',
+                      },
+                    ),
+                    child: Text('[${state.threadType!.name}]', style: infoTextHighlightStyle),
+                  ),
+                ),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () async {
+                    final id = state.tid ?? widget.threadID;
+                    final title = state.title ?? widget.title;
+                    await showCopyThreadInfoDialog(context: context, tid: id, title: title);
+                  },
+                  child: Text('[${context.t.threadPage.title} ${state.tid ?? ""}]', style: infoTextHighlightStyle),
+                ),
+              ),
+              if (state.viewCount != null || state.replyCount != null)
+                Text('[${context.t.threadPage.statistics(view: state.viewCount ?? 0, reply: state.replyCount ?? 0)}]'),
+              if (state.isDraft) Text('[${context.t.threadPage.draft}]'),
+            ].reversed.toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> replyPostCallback(User user, int? postFloor, String? replyAction) async {
     if (replyAction == null) {
       return;
@@ -142,10 +231,8 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
       children: [
         Expanded(
           child: PostList(
-            forumID: state.fid,
             threadID: state.tid ?? widget.threadID,
             title: state.title ?? widget.title,
-            threadType: state.threadType ?? widget.threadType,
             pageNumber: context.read<JumpPageCubit>().state.currentPage,
             initialPostID: widget.findPostID?.parseToInt(),
             scrollController: _listScrollController,
@@ -153,7 +240,6 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
             useDivider: true,
             postList: state.postList,
             canLoadMore: state.canLoadMore,
-            isDraft: state.isDraft,
             latestModAct: state.latestModAct,
           ),
         ),
@@ -192,17 +278,14 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
       );
     } else if (!state.havePermission) {
       if (state.permissionDeniedMessage != null) {
-        return ErrorCard(
-          message: context.t.general.noPermission,
-          child: munchElement(context, state.permissionDeniedMessage!),
-        );
+        return ErrorCard(child: munchElement(context, state.permissionDeniedMessage!));
       } else {
         return Center(child: Text(context.t.general.noPermission));
       }
     }
 
     return switch (state.status) {
-      ThreadStatus.initial || ThreadStatus.loading => const Center(child: CircularProgressIndicator()),
+      ThreadStatus.initial || ThreadStatus.loading => const CenteredCircularIndicator(),
       ThreadStatus.failure => buildRetryButton(context, () {
         context.read<ThreadBloc>().add(ThreadLoadMoreRequested(state.currentPage));
       }),
@@ -238,15 +321,14 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
         RepositoryProvider<ThreadRepository>(create: (_) => ThreadRepository()),
         RepositoryProvider<ReplyRepository>(create: (_) => const ReplyRepository()),
         BlocProvider(
-          create:
-              (context) => ThreadBloc(
-                tid: widget.threadID,
-                pid: widget.findPostID,
-                onlyVisibleUid: widget.onlyVisibleUid,
-                threadRepository: context.repo(),
-                reverseOrder: widget.overrideReverseOrder ? threadReverseOrder : null,
-                exactOrder: widget.overrideWithExactOrder,
-              )..add(ThreadLoadMoreRequested(int.tryParse(widget.pageNumber) ?? 1)),
+          create: (context) => ThreadBloc(
+            tid: widget.threadID,
+            pid: widget.findPostID,
+            onlyVisibleUid: widget.onlyVisibleUid,
+            threadRepository: context.repo(),
+            reverseOrder: widget.overrideReverseOrder ? threadReverseOrder : null,
+            exactOrder: widget.overrideWithExactOrder,
+          )..add(ThreadLoadMoreRequested(int.tryParse(widget.pageNumber) ?? 1)),
         ),
         BlocProvider(create: (context) => ReplyBloc(replyRepository: context.repo())),
         BlocProvider(create: (context) => JumpPageCubit()),
@@ -319,13 +401,14 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
           builder: (context, state) {
             // Update jump page state.
             context.read<JumpPageCubit>().setPageInfo(totalPages: state.totalPages, currentPage: state.currentPage);
+            final textScaleExtraBreadHeight = context.select<SettingsBloc, double>(
+              (bloc) => 1 * math.max(0, (bloc.state.settingsMap.textScaleFactor - 1) / 0.1),
+            );
 
-            String? title;
-
+            final title = widget.title ?? state.title;
             // Reset jump page state when every build.
             if (state.status == ThreadStatus.loading || state.status == ThreadStatus.initial) {
               context.read<JumpPageCubit>().markLoading();
-              title = widget.title;
             } else {
               context.read<JumpPageCubit>().markSuccess();
             }
@@ -348,10 +431,11 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
               resizeToAvoidBottomInset: false,
               appBar: ListAppBar(
                 title: title,
+                bottom: PreferredSize(
+                  preferredSize: Size.fromHeight(20 + textScaleExtraBreadHeight),
+                  child: _buildBreadcrumbsRow(state, textScaleExtraBreadHeight),
+                ),
                 showReverseOrderAction: true,
-                onSearch: () async {
-                  await context.pushNamed(ScreenPaths.search);
-                },
                 onJumpPage: (pageNumber) async {
                   if (!mounted) {
                     return;
@@ -362,26 +446,20 @@ class _ThreadPageState extends State<ThreadPage> with SingleTickerProviderStateM
                   context.read<JumpPageCubit>().markLoading();
                   context.read<ThreadBloc>().add(ThreadJumpPageRequested(pageNumber));
                 },
-                onSelected: (value) async {
-                  switch (value) {
-                    case MenuActions.refresh:
-                      context.read<ThreadBloc>().add(ThreadRefreshRequested());
-                    case MenuActions.copyUrl:
-                      await copyToClipboard(context, threadUrl!);
-                    case MenuActions.openInBrowser:
-                      await context.dispatchAsUrl(threadUrl!, external: true);
-                    case MenuActions.backToTop:
-                      await _listScrollController.animateTo(
-                        0,
-                        curve: Curves.ease,
-                        duration: const Duration(milliseconds: 500),
-                      );
-                    case MenuActions.reverseOrder:
-                      context.readOrNull<ThreadBloc>()?.add(const ThreadChangeViewOrderRequested());
-                    case MenuActions.debugViewLog:
-                      await context.pushNamed(ScreenPaths.debugLog);
-                  }
-                },
+                onRefresh: () => context.read<ThreadBloc>().add(ThreadRefreshRequested()),
+                onCopyUrl: () async => copyToClipboard(context, threadUrl!),
+                onOpenInBrowser: () async => context.dispatchAsUrl(threadUrl!, external: true),
+                onBackToTop: () async =>
+                    _listScrollController.animateTo(0, curve: Curves.ease, duration: const Duration(milliseconds: 500)),
+                onReverseOrder: () => context.readOrNull<ThreadBloc>()?.add(const ThreadChangeViewOrderRequested()),
+                customMenuItems: [
+                  if (state.tid != null)
+                    MenuCustomItem(
+                      icon: Icons.numbers_outlined,
+                      description: context.t.threadPage.copyTid(tid: state.tid!),
+                      onSelected: () async => copyToClipboard(context, state.tid!),
+                    ),
+                ],
               ),
               body: SafeArea(bottom: false, child: _buildBody(context, state)),
             );

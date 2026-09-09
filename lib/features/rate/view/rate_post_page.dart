@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -7,10 +8,15 @@ import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/features/rate/bloc/rate_bloc.dart';
 import 'package:tsdm_client/features/rate/models/models.dart';
 import 'package:tsdm_client/features/rate/repository/rate_repository.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
+import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 import 'package:tsdm_client/widgets/debounce_buttons.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/section_switch_list_tile.dart';
 
 /// Page to rate a post in thread.
@@ -43,6 +49,10 @@ class RatePostPage extends StatefulWidget {
 class _RatePostPageState extends State<RatePostPage> with LoggerMixin {
   final formKey = GlobalKey<FormState>();
 
+  /// Key in [scoreMap] may be the name attribute "威望" or id of attribute `score1` and the attribute name may
+  /// surrounded by spaces like " 威望".
+  ///
+  /// To get the human readable name of score, check with the name of `scoreList` in `state`.
   Map<String, TextEditingController>? scoreMap;
   final reasonController = TextEditingController();
 
@@ -124,11 +134,11 @@ class _RatePostPageState extends State<RatePostPage> with LoggerMixin {
     }
 
     if (state.status == RateStatus.initial || state.status == RateStatus.fetchingInfo) {
-      return const Center(child: CircularProgressIndicator());
+      return const CenteredCircularIndicator();
     }
 
     if (state.status == RateStatus.failed) {
-      return const Center(child: CircularProgressIndicator());
+      return const CenteredCircularIndicator();
     }
 
     final scoreWidgetList = state.info!.scoreList.map((e) => _buildScoreWidget(context, e)).toList();
@@ -140,31 +150,30 @@ class _RatePostPageState extends State<RatePostPage> with LoggerMixin {
         descendantsAreFocusable: false,
         child: IconButton(
           icon: const Icon(Icons.arrow_drop_down_outlined),
-          onPressed:
-              () async => showDialog(
-                context: context,
-                builder:
-                    (_) => AlertDialog(
-                      title: Text(tr.reason),
-                      scrollable: true,
-                      content: Column(
-                        children:
-                            state.info!.defaultReasonList
-                                .map(
-                                  (e) => ListTile(
-                                    title: Text(e),
-                                    onTap: () {
-                                      context.pop();
-                                      setState(() {
-                                        reasonController.text = e;
-                                      });
-                                    },
-                                  ),
-                                )
-                                .toList(),
-                      ),
-                    ),
+          onPressed: () async => showDialog(
+            context: context,
+            builder: (_) => RootPage(
+              DialogPaths.selectRateReason,
+              CustomAlertDialog.sync(
+                title: Text(tr.reason),
+                content: Column(
+                  children: state.info!.defaultReasonList
+                      .map(
+                        (e) => ListTile(
+                          title: Text(e),
+                          onTap: () {
+                            context.pop();
+                            setState(() {
+                              reasonController.text = e;
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
               ),
+            ),
+          ),
         ),
       );
     }
@@ -245,6 +254,60 @@ class _RatePostPageState extends State<RatePostPage> with LoggerMixin {
     );
   }
 
+  Future<void> chooseTemplate(RateState state) async {
+    final scoreList = state.info?.scoreList;
+    if (scoreList == null) {
+      return;
+    }
+
+    final pickResult = await context.pushNamed<FastRateTemplateModel>(
+      ScreenPaths.fastRateTemplate,
+      pathParameters: {'pick': 'true'},
+    );
+    if (pickResult == null || !context.mounted) {
+      return;
+    }
+
+    // Flag indicating the first special attribute is used or not.
+    // Target at the second special attribute when the first one is used and another unknown
+    // name attribute occurs.
+    var specialAttrUsed = false;
+
+    // Score in `scoreMap` may have score id as key (score1) or score name as key ("威望").
+    // Here we check the correct attribute name with cached score info in `state.scoreList`.
+    for (final scoreEntry in scoreMap!.entries) {
+      final target = scoreList.firstWhereOrNull((e) => e.id == scoreEntry.key);
+      if (target == null) {
+        error('unknown attr name ${scoreEntry.key} when choosing rate template');
+        continue;
+      }
+      // Don't forget to trim the target score name.
+      switch (target.name.trim()) {
+        case '威望':
+          scoreEntry.value.text = '${pickResult.ww}';
+        case '天使币':
+          scoreEntry.value.text = '${pickResult.tsb}';
+        case '宣传':
+          scoreEntry.value.text = '${pickResult.xc}';
+        case '天然':
+          scoreEntry.value.text = '${pickResult.tr}';
+        case '腹黑':
+          scoreEntry.value.text = '${pickResult.fh}';
+        case '精灵':
+          scoreEntry.value.text = '${pickResult.jl}';
+        default:
+          {
+            if (specialAttrUsed) {
+              scoreEntry.value.text = '${pickResult.special2}';
+            } else {
+              scoreEntry.value.text = '${pickResult.special}';
+              specialAttrUsed = true;
+            }
+          }
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -269,10 +332,9 @@ class _RatePostPageState extends State<RatePostPage> with LoggerMixin {
       providers: [
         RepositoryProvider(create: (_) => RateRepository()),
         BlocProvider(
-          create:
-              (context) =>
-                  RateBloc(rateRepository: context.repo())
-                    ..add(RateFetchInfoRequested(pid: widget.pid, rateAction: widget.rateAction)),
+          create: (context) =>
+              RateBloc(rateRepository: context.repo())
+                ..add(RateFetchInfoRequested(pid: widget.pid, rateAction: widget.rateAction)),
         ),
       ],
       child: BlocListener<RateBloc, RateState>(
@@ -293,7 +355,18 @@ class _RatePostPageState extends State<RatePostPage> with LoggerMixin {
         child: BlocBuilder<RateBloc, RateState>(
           builder: (context, state) {
             return Scaffold(
-              appBar: AppBar(title: Text(tr.title)),
+              appBar: AppBar(
+                title: Text(tr.title),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.star_rate_outlined),
+                    tooltip: context.t.fastRateTemplate.title,
+                    onPressed: state.status == RateStatus.fetchingInfo || state.status == RateStatus.rating
+                        ? null
+                        : () => chooseTemplate(state),
+                  ),
+                ],
+              ),
               body: SafeArea(bottom: false, child: _buildBody(context, state)),
             );
           },

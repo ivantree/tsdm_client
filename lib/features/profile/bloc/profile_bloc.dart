@@ -1,10 +1,12 @@
 import 'package:bloc/bloc.dart';
 import 'package:dart_mappable/dart_mappable.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/fp.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/extensions/universal_html.dart';
 import 'package:tsdm_client/features/authentication/repository/authentication_repository.dart';
+import 'package:tsdm_client/features/profile/internal/profile_parser.dart';
 import 'package:tsdm_client/features/profile/models/managed_forum.dart';
 import 'package:tsdm_client/features/profile/models/models.dart';
 import 'package:tsdm_client/features/profile/models/profile_medal.dart';
@@ -49,15 +51,21 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
 
   Future<void> _onLoadRequested(_Emitter emit, {String? username, String? uid}) async {
     if (username == null && uid == null && _profileRepository.hasCache()) {
-      final userProfile = _buildProfile(_profileRepository.getCache()!);
-      final (unreadNoticeCount, hasUnreadMessage) = _buildUnreadInfoStatus(_profileRepository.getCache()!);
-      emit(
-        state.copyWith(
-          status: ProfileStatus.success,
-          userProfile: userProfile,
-          unreadNoticeCount: unreadNoticeCount,
-          hasUnreadMessage: hasUnreadMessage,
-        ),
+      (await _buildProfile(_profileRepository.getCache()!).run()).match(
+        (e) {
+          emit(state.copyWith(status: ProfileStatus.failure, failedToLogoutReason: e));
+        },
+        (v) {
+          final (unreadNoticeCount, hasUnreadMessage) = _buildUnreadInfoStatus(_profileRepository.getCache()!);
+          emit(
+            state.copyWith(
+              status: ProfileStatus.success,
+              userProfile: v,
+              unreadNoticeCount: unreadNoticeCount,
+              hasUnreadMessage: hasUnreadMessage,
+            ),
+          );
+        },
       );
       return;
     }
@@ -74,20 +82,23 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
       return;
     }
     final document = documentEither.unwrap();
-    final userProfile = _buildProfile(document);
-    if (userProfile == null) {
-      error('failed to parse user profile');
-      emit(state.copyWith(status: ProfileStatus.failure));
-      return;
-    }
-    final (unreadNoticeCount, hasUnreadMessage) = _buildUnreadInfoStatus(document);
-    emit(
-      state.copyWith(
-        status: ProfileStatus.success,
-        userProfile: userProfile,
-        unreadNoticeCount: unreadNoticeCount,
-        hasUnreadMessage: hasUnreadMessage,
-      ),
+
+    (await _buildProfile(document).run()).match(
+      (e) {
+        error('failed to parse user profile: $e');
+        emit(state.copyWith(status: ProfileStatus.failure, failedToLogoutReason: e));
+      },
+      (v) {
+        final (unreadNoticeCount, hasUnreadMessage) = _buildUnreadInfoStatus(document);
+        emit(
+          state.copyWith(
+            status: ProfileStatus.success,
+            userProfile: v,
+            unreadNoticeCount: unreadNoticeCount,
+            hasUnreadMessage: hasUnreadMessage,
+          ),
+        );
+      },
     );
   }
 
@@ -105,20 +116,23 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
       return;
     }
     final document = documentEither.unwrap();
-    final userProfile = _buildProfile(document);
-    if (userProfile == null) {
-      error('failed to parse user profile');
-      emit(state.copyWith(status: ProfileStatus.failure));
-      return;
-    }
-    final (unreadNoticeCount, hasUnreadMessage) = _buildUnreadInfoStatus(document);
-    emit(
-      state.copyWith(
-        status: ProfileStatus.success,
-        userProfile: userProfile,
-        unreadNoticeCount: unreadNoticeCount,
-        hasUnreadMessage: hasUnreadMessage,
-      ),
+    (await _buildProfile(document).run()).match(
+      (e) {
+        error('failed to parse user profile: $e');
+        emit(state.copyWith(status: ProfileStatus.failure, failedToLogoutReason: e));
+        return;
+      },
+      (v) {
+        final (unreadNoticeCount, hasUnreadMessage) = _buildUnreadInfoStatus(document);
+        emit(
+          state.copyWith(
+            status: ProfileStatus.success,
+            userProfile: v,
+            unreadNoticeCount: unreadNoticeCount,
+            hasUnreadMessage: hasUnreadMessage,
+          ),
+        );
+      },
     );
   }
 
@@ -131,19 +145,29 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
   }
 
   /// Build a user profile [UserProfile] from given html [document].
-  UserProfile? _buildProfile(uh.Document document) {
-    final profileRootNode = document.querySelector('div#pprl > div.bm.bbda');
-
-    if (profileRootNode == null) {
-      return null;
+  TaskEither<AppException, UserProfile> _buildProfile(uh.Document document) {
+    final errorText = document.querySelector('div#messagetext > p')?.innerText;
+    if (errorText != null) {
+      return TaskEither.left(ServerRespondedErrorException(errorText));
     }
 
-    final avatarUrl = document.querySelector('div#wp.wp div#ct.ct2 div.sd div.hm > p > a > img')?.imageUrl();
+    final profileRootNode = findProfileRoot(document);
+
+    if (profileRootNode == null) {
+      return TaskEither.left(ProfileStatusNotFoundException());
+    }
+
+    final avatarUrl = findProfileAvatarUrl(document, profileRootNode);
 
     // Basic info
     final username = profileRootNode.querySelector('h2.mbn')?.nodes.firstOrNull?.text?.trim();
-    final uid =
-        profileRootNode.querySelector('h2.mbn > span.xw0')?.text?.split(': ').lastOrNull?.split(')').firstOrNull;
+    final uid = profileRootNode
+        .querySelector('h2.mbn > span.xw0')
+        ?.text
+        ?.split(': ')
+        .lastOrNull
+        ?.split(')')
+        .firstOrNull;
 
     ///////////  Basic status ///////////
 
@@ -167,11 +191,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
     String? from;
     String? qq;
 
-    final basicInfoList =
-        profileRootNode
-            .querySelectorAll('div.pbm:nth-child(1) li')
-            .map((e) => e.parseLiEmNode())
-            .whereType<(String, String)>();
+    final basicInfoList = profileRootNode
+        .querySelectorAll('div.pbm:nth-child(1) li')
+        .map((e) => e.parseLiEmNode())
+        .whereType<(String, String)>();
 
     for (final attr in basicInfoList) {
       switch (attr.$1) {
@@ -213,18 +236,20 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
       }
     }
 
-    final profileMedals =
-        profileRootNode.querySelectorAll('p.md_ctrl img').map(ProfileMedal.fromImg).whereType<ProfileMedal>().toList();
+    final profileMedals = profileRootNode
+        .querySelectorAll('p.md_ctrl img')
+        .map(ProfileMedal.fromImg)
+        .whereType<ProfileMedal>()
+        .toList();
 
-    final managedForums =
-        profileRootNode
-            .querySelector('ul#pbbs')
-            ?.parent
-            ?.previousElementSibling
-            ?.querySelectorAll('a')
-            .map(ManagedForum.fromA)
-            .whereType<ManagedForum>()
-            .toList();
+    final managedForums = profileRootNode
+        .querySelector('ul#pbbs')
+        ?.parent
+        ?.previousElementSibling
+        ?.querySelectorAll('a')
+        .map(ManagedForum.fromA)
+        .whereType<ManagedForum>()
+        .toList();
 
     // Check in status
     final checkinNode = profileRootNode.querySelector('div.pbm.mbm.bbda.c');
@@ -235,8 +260,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
     final checkinLastTimeCoin = checkinNode?.querySelector('p:nth-child(5) font:nth-child(2)')?.firstEndDeepText();
     final checkinLevel = checkinNode?.querySelector('p:nth-child(6) font:nth-child(1)')?.firstEndDeepText();
     final checkinNextLevel = checkinNode?.querySelector('p:nth-child(6) font:nth-child(2)')?.firstEndDeepText();
-    final checkinNextLevelDays =
-        checkinNode?.querySelector('p:nth-child(6) font:nth-child(3)')?.firstEndDeepText()?.parseToInt();
+    final checkinNextLevelDays = checkinNode
+        ?.querySelector('p:nth-child(6) font:nth-child(3)')
+        ?.firstEndDeepText()
+        ?.parseToInt();
     final checkinTodayStatus = checkinNode?.querySelector('p:nth-child(7)')?.firstEndDeepText();
 
     ///////////  User group status ///////////
@@ -244,13 +271,12 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
     String? moderatorGroup;
     String? userGroup;
 
-    final userGroupInfoList =
-        profileRootNode
-            .querySelector('ul#pbbs')
-            ?.previousElementSibling
-            ?.querySelectorAll('li')
-            .map((e) => e.parseLiEmNode())
-            .whereType<(String, String)>();
+    final userGroupInfoList = profileRootNode
+        .querySelector('ul#pbbs')
+        ?.previousElementSibling
+        ?.querySelectorAll('li')
+        .map((e) => e.parseLiEmNode())
+        .whereType<(String, String)>();
     if (userGroupInfoList != null) {
       for (final info in userGroupInfoList) {
         switch (info.$1) {
@@ -312,12 +338,15 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
     String? specialAttr;
     // Name of special attr.
     String? specialAttrName;
+    // Special attr that changes over time. Optionally used.
+    String? specialAttr2;
+    // Name of special attr. Optionally used.
+    String? specialAttrName2;
 
-    final statisticsInfoList =
-        profileRootNode
-            .querySelectorAll('div#psts > ul > li')
-            .map((e) => e.parseLiEmNode())
-            .whereType<(String, String)>();
+    final statisticsInfoList = profileRootNode
+        .querySelectorAll('div#psts > ul > li')
+        .map((e) => e.parseLiEmNode())
+        .whereType<(String, String)>();
     for (final stat in statisticsInfoList) {
       switch (stat.$1) {
         case '积分':
@@ -334,26 +363,20 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
           scheming = stat.$2;
         case '精灵':
           spirit = stat.$2;
-        // Special attr that changes over time.
-        // 2023 春节
-        case '龙之印章':
-          specialAttr = stat.$2;
-          specialAttrName = '龙之印章';
-        // 2024 夏日
-        case '西瓜':
-          specialAttr = stat.$2;
-          specialAttrName = '西瓜';
-        // 2024 坛庆
-        case '爱心❤':
-          specialAttr = stat.$2;
-          specialAttrName = '爱心';
-        case '金蛋':
-          specialAttr = stat.$2;
-          specialAttrName = '金蛋';
+        default:
+          {
+            if (specialAttr == null) {
+              specialAttr = stat.$2;
+              specialAttrName = stat.$1.trim().replaceFirst(':', '');
+            } else {
+              specialAttr2 = stat.$2;
+              specialAttrName2 = stat.$1.trim().replaceFirst(':', '');
+            }
+          }
       }
     }
 
-    return UserProfile(
+    final profile = UserProfile(
       avatarUrl: avatarUrl,
       username: username,
       uid: uid,
@@ -413,7 +436,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> with LoggerMixin {
       spirit: spirit,
       specialAttr: specialAttr,
       specialAttrName: specialAttrName,
+      specialAttr2: specialAttr2,
+      specialAttrName2: specialAttrName2,
     );
+
+    return TaskEither.right(profile);
   }
 
   (int unreadNoticeCount, bool hasUnreadMessage) _buildUnreadInfoStatus(uh.Document document) {

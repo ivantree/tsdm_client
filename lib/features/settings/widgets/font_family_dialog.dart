@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// Dialog for choosing font family.
 class FontFamilyDialog extends StatefulWidget {
@@ -32,9 +33,8 @@ class _FontFamilyDialogState extends State<FontFamilyDialog> {
   @override
   Widget build(BuildContext context) {
     final tr = context.t.settingsPage.appearanceSection.fontFamily;
-    return AlertDialog(
+    return CustomAlertDialog.sync(
       title: Text(tr.dialogTitle),
-      scrollable: true,
       content: TextField(controller: _fontController, autofocus: true),
       actions: [
         TextButton(child: Text(context.t.general.reset), onPressed: () => context.pop('')),

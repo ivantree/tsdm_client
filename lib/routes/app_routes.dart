@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/features/authentication/view/login_page.dart';
@@ -20,17 +19,25 @@ import 'package:tsdm_client/features/notification/view/broadcast_message_detail_
 import 'package:tsdm_client/features/notification/view/notification_detail_page.dart';
 import 'package:tsdm_client/features/notification/view/notification_page.dart';
 import 'package:tsdm_client/features/notification/view/notification_search_page.dart';
+import 'package:tsdm_client/features/open_in_app/view/open_in_app_page.dart';
 import 'package:tsdm_client/features/packet/view/packet_detail_page.dart';
 import 'package:tsdm_client/features/points/views/points_page.dart';
 import 'package:tsdm_client/features/post/models/models.dart';
+import 'package:tsdm_client/features/post/view/fast_reply_edit_template_page.dart';
+import 'package:tsdm_client/features/post/view/fast_reply_template_page.dart';
 import 'package:tsdm_client/features/post/view/post_edit_page.dart';
 import 'package:tsdm_client/features/profile/view/edit_avatar_page.dart';
+import 'package:tsdm_client/features/profile/view/edit_user_profile_page.dart';
+import 'package:tsdm_client/features/profile/view/my_titles_page.dart';
 import 'package:tsdm_client/features/profile/view/profile_page.dart';
 import 'package:tsdm_client/features/profile/view/switch_user_group_page.dart';
+import 'package:tsdm_client/features/rate/view/fast_rate_edit_template_page.dart';
+import 'package:tsdm_client/features/rate/view/fast_rate_template_page.dart';
+import 'package:tsdm_client/features/rate/view/rate_log_page.dart';
 import 'package:tsdm_client/features/rate/view/rate_post_page.dart';
 import 'package:tsdm_client/features/root/view/root_page.dart';
-import 'package:tsdm_client/features/root/view/singleton.dart';
 import 'package:tsdm_client/features/search/view/search_page.dart';
+import 'package:tsdm_client/features/settings/models/historical_log.dart';
 import 'package:tsdm_client/features/settings/view/about_page.dart';
 import 'package:tsdm_client/features/settings/view/debug_log_page.dart';
 import 'package:tsdm_client/features/settings/view/settings_page.dart';
@@ -40,30 +47,29 @@ import 'package:tsdm_client/features/thread/v1/view/thread_page.dart';
 import 'package:tsdm_client/features/thread/v2/view/thread_page_v2.dart';
 import 'package:tsdm_client/features/thread_visit_history/view/thread_visit_history_page.dart';
 import 'package:tsdm_client/features/topics/view/topics_page.dart';
+import 'package:tsdm_client/features/update/view/local_changelog_page.dart';
 import 'package:tsdm_client/features/update/view/update_page.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
-import 'package:tsdm_client/shared/repositories/forum_home_repository/forum_home_repository.dart';
+import 'package:tsdm_client/shared/models/models.dart';
 
 /// App router instance wrapped with global singleton widgets.
-final router = GoRouter(
-  initialLocation: ScreenPaths.homepage,
-  routes: [GoRoute(path: ScreenPaths.root, builder: (_, _) => const RootSingleton(), routes: _appRoutes)],
-);
+final router = GoRouter(initialLocation: ScreenPaths.homepage, routes: _appRoutes);
 
 /// All named routes in app.
-final _appRoutes = [
+final List<RouteBase> _appRoutes = [
   StatefulShellRoute.indexedStack(
     builder: (context, router, navigator) {
       final hideNavigationBarPages = [ScreenPaths.settingsThreadAppearance.fullPath];
-      return HomePage(
-        forumHomeRepository: RepositoryProvider.of<ForumHomeRepository>(context),
-        showNavigationBar: !hideNavigationBarPages.contains(router.fullPath),
-        child: navigator,
-      );
+      // Partial global singleton page here.
+      return HomePage(showNavigationBar: !hideNavigationBarPages.contains(router.fullPath), child: navigator);
     },
     branches: [
-      StatefulShellBranch(routes: [AppRoute(path: ScreenPaths.homepage, builder: (_) => const HomepagePage())]),
-      StatefulShellBranch(routes: [AppRoute(path: ScreenPaths.topic, builder: (_) => const TopicsPage())]),
+      StatefulShellBranch(
+        routes: [AppRoute(path: ScreenPaths.homepage, builder: (_) => const HomepagePage())],
+      ),
+      StatefulShellBranch(
+        routes: [AppRoute(path: ScreenPaths.topic, builder: (_) => const TopicsPage())],
+      ),
       StatefulShellBranch(
         routes: [
           AppRoute(
@@ -80,6 +86,7 @@ final _appRoutes = [
       ),
     ],
   ),
+  AppRoute(path: ScreenPaths.rootSettings, builder: (_) => const SettingsPage()),
   AppRoute(
     path: ScreenPaths.loggedUserProfile,
     builder: (state) {
@@ -195,6 +202,21 @@ final _appRoutes = [
       return NoticeDetailPage(url: target, noticeType: NoticeType.values[noticeTypeIndex]);
     },
   ),
+  AppRoute(
+    path: ScreenPaths.fastReplyTemplate,
+    builder: (state) {
+      final pick = bool.parse(state.pathParameters['pick']!);
+      return FastReplyTemplatePage(pick: pick);
+    },
+  ),
+  AppRoute(
+    path: ScreenPaths.fastReplyTemplateEdit,
+    builder: (state) {
+      final editType = FastReplyTemplateEditType.values[int.parse(state.pathParameters['editType']!)];
+      final initialValue = state.extra as FastReplyTemplateModel?;
+      return FastReplyTemplateEditPage(editType, initialValue);
+    },
+  ),
   AppRoute(path: ScreenPaths.noticeSearch, builder: (_) => const NotificationSearchPage()),
   AppRoute(path: ScreenPaths.myThread, builder: (_) => const MyThreadPage()),
   AppRoute(
@@ -230,6 +252,8 @@ final _appRoutes = [
   ),
   AppRoute(path: ScreenPaths.editAvatar, builder: (_) => const EditAvatarPage()),
   AppRoute(path: ScreenPaths.switchUserGroup, builder: (_) => const SwitchUserGroupPage()),
+  AppRoute(path: ScreenPaths.switchTitle, builder: (_) => const MyTitlesPage()),
+  AppRoute(path: ScreenPaths.editUserProfile, builder: (_) => const EditUserProfilePage()),
   AppRoute(
     path: ScreenPaths.ratePost,
     builder: (state) {
@@ -238,6 +262,31 @@ final _appRoutes = [
       final floor = state.pathParameters['floor']!;
       final rateAction = state.pathParameters['rateAction']!;
       return RatePostPage(username: username, pid: pid, floor: floor, rateAction: rateAction);
+    },
+  ),
+  AppRoute(
+    path: ScreenPaths.rateLog,
+    builder: (state) {
+      final tid = state.pathParameters['tid']!;
+      final pid = state.pathParameters['pid']!;
+      final threadTitle = state.uri.queryParameters['threadTitle'];
+      final total = state.uri.queryParameters['total'];
+      return RateLogPage(tid: tid, pid: pid, threadTitle: threadTitle, total: total);
+    },
+  ),
+  AppRoute(
+    path: ScreenPaths.fastRateTemplate,
+    builder: (state) {
+      final pick = bool.parse(state.pathParameters['pick']!);
+      return FastRateTemplatePage(pick: pick);
+    },
+  ),
+  AppRoute(
+    path: ScreenPaths.fastRateTemplateEdit,
+    builder: (state) {
+      final editType = FastRateTemplateEditType.values[int.parse(state.pathParameters['editType']!)];
+      final initialValue = state.extra as FastRateTemplateModel?;
+      return FastRateTemplateEditPage(editType, initialValue);
     },
   ),
   AppRoute(path: ScreenPaths.points, builder: (_) => const PointsPage()),
@@ -289,6 +338,14 @@ final _appRoutes = [
   AppRoute(path: ScreenPaths.threadVisitHistory, builder: (_) => const ThreadVisitHistoryPage()),
   AppRoute(path: ScreenPaths.autoCheckinDetail, builder: (_) => const AutoCheckinPage()),
   AppRoute(path: ScreenPaths.debugLog, builder: (_) => const DebugLogPage()),
+  AppRoute(path: ScreenPaths.debugHistoricalLog, builder: (_) => const DebugHistoricalLogPage()),
+  AppRoute(
+    path: ScreenPaths.debugHistoricalLogDetail,
+    builder: (state) {
+      final log = state.extra as HistoricalLog?;
+      return DebugHistoricalLogDetailPage(log!);
+    },
+  ),
   AppRoute(
     path: ScreenPaths.packetDetail,
     builder: (state) {
@@ -298,6 +355,8 @@ final _appRoutes = [
   ),
   AppRoute(path: ScreenPaths.manageAccount, builder: (_) => const ManageAccountPage()),
   AppRoute(path: ScreenPaths.update, builder: (_) => const UpdatePage()),
+  AppRoute(path: ScreenPaths.localChangelog, builder: (_) => const LocalChangelogPage()),
+  AppRoute(path: ScreenPaths.openInApp, builder: (_) => const OpenInAppPage()),
 ];
 
 /// Refer from wondrous app.
@@ -313,8 +372,7 @@ class AppRoute extends GoRoute {
   }) : super(
          name: path,
          routes: routes,
-         pageBuilder:
-             (context, state) =>
-                 MaterialPage<void>(name: path, arguments: state.pathParameters, child: RootPage(path, builder(state))),
+         pageBuilder: (context, state) =>
+             MaterialPage<void>(name: path, arguments: state.pathParameters, child: RootPage(path, builder(state))),
        );
 }

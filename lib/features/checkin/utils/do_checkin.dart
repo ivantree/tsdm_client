@@ -39,13 +39,28 @@ Task<CheckinResult> doCheckin(NetClientProvider netClient, CheckinFeeling feelin
     }
 
     final document = parseHtmlDocument(resp.data as String);
+
+    final maybeCheckinMessage = document.querySelector('h1.mt')?.innerText;
+    if (maybeCheckinMessage != null) {
+      final r2 = _checkCheckinResultText(maybeCheckinMessage);
+      if (r2 != null) {
+        return r2;
+      }
+    }
+
     final formHashMatch = _re.firstMatch(document.body?.innerHtml ?? '');
     final formHash = formHashMatch?.namedGroup('FormHash');
     if (formHash == null) {
       return const CheckinResultFormHashNotFound();
     }
 
-    final body = {'formhash': formHash, 'qdxq': feeling.toString(), 'qdmode': 1, 'todaysay': message, 'fastreply': 1};
+    final body = <String, String>{
+      'formhash': formHash,
+      'qdxq': feeling.toString(),
+      'qdmode': '1',
+      'todaysay': message,
+      'fastreply': '1',
+    };
 
     final checkInRespEither = await netClient.postForm(_checkInRequestUrl, data: body).run();
     if (checkInRespEither.isLeft()) {
@@ -55,8 +70,10 @@ Task<CheckinResult> doCheckin(NetClientProvider netClient, CheckinFeeling feelin
     final checkInResp = checkInRespEither.unwrap();
     final checkInRespData = (checkInResp.data as String).split('\n');
 
-    final checkInResult =
-        checkInRespData.firstWhereOrNull((e) => e.contains('</div>'))?.replaceFirst('</div>', '').trim();
+    final checkInResult = checkInRespData
+        .firstWhereOrNull((e) => e.contains('</div>'))
+        ?.replaceFirst('</div>', '')
+        .trim();
 
     // Return results.
     if (checkInResult == null) {
@@ -64,27 +81,36 @@ Task<CheckinResult> doCheckin(NetClientProvider netClient, CheckinFeeling feelin
       return CheckinResultOtherError(resp.data as String);
     }
 
-    if (checkInResult.contains('签到成功')) {
-      talker.info('check in success: $checkInResult');
-      return CheckinResultSuccess(checkInResult);
-    }
-
-    if (checkInResult.contains('已经签到')) {
-      talker.error('check in failed: already checked in today');
-      return const CheckinResultAlreadyChecked();
-    }
-
-    if (checkInResult.contains('已经过了签到时间')) {
-      talker.error('check in failed: late in time');
-      return const CheckinResultLateInTime();
-    }
-
-    if (checkInResult.contains('签到时间还没有到')) {
-      talker.error('check in failed: early in time');
-      return const CheckinResultEarlyInTime();
+    final r2 = _checkCheckinResultText(checkInResult);
+    if (r2 != null) {
+      return r2;
     }
 
     talker.error('check in with other error: $checkInResult');
     return CheckinResultOtherError(resp.data as String);
   });
+}
+
+CheckinResult? _checkCheckinResultText(String result) {
+  if (result.contains('签到成功')) {
+    talker.info('check in success: $result');
+    return CheckinResultSuccess(result);
+  }
+
+  if (result.contains('已经签到')) {
+    talker.error('check in failed: already checked in today');
+    return const CheckinResultAlreadyChecked();
+  }
+
+  if (result.contains('已经过了签到时间')) {
+    talker.error('check in failed: late in time');
+    return const CheckinResultLateInTime();
+  }
+
+  if (result.contains('签到时间还没有到')) {
+    talker.error('check in failed: early in time');
+    return const CheckinResultEarlyInTime();
+  }
+
+  return null;
 }

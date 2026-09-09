@@ -3,8 +3,14 @@
 /// This is kept the same with server behavior.
 const defaultCookieTime = 2592000;
 
+/// Host in url.
+const baseHost = 'www.tsdm39.com';
+
+/// Host in url, without www prefix.
+const baseHostAlt = 'tsdm39.com';
+
 /// Server site base url.
-const baseUrl = 'https://www.tsdm39.com';
+const baseUrl = 'https://$baseHost';
 
 /// Homepage of tsdm.
 const homePage = '$baseUrl/forum.php';
@@ -58,7 +64,7 @@ const modifyUserCredentialUrl = '$baseUrl/home.php?mod=spacecp&ac=profile&op=pas
 /// * Username
 /// * UID
 /// * User email
-const checkAuthenticationStateUrl = modifyUserCredentialUrl;
+const String checkAuthenticationStateUrl = modifyUserCredentialUrl;
 
 /// Url to get the latest app on Github.
 const upgradeGithubReleaseUrl = 'https://github.com/realth000/tsdm_client/releases/latest';
@@ -74,6 +80,16 @@ String formatReplyThreadUrl(String fid, String tid) {
 
 /// Prefix in url to get fast reply window to a certain post.
 const replyPostWindowSuffix = '&infloat=yes&handlekey=reply&inajax=1&ajaxtarget=fwin_content_reply';
+
+/// Url of images have rendering issue with Impeller.
+///
+/// The root cause is not clear, maybe corrupt cache content, but it works with skia backend so should not be it.
+/// Since these images are now for redirect back purpose, we could handle them specially although we didn't intend to
+/// do it before, we have to do it before the next upcoming stable release of Flutter in August, 2025.
+const tmpImpellerWorkaroundUrls = [
+  'https://$baseHost/static/image/common/back.gif',
+  'https://$baseHostAlt/static/image/common/back.gif',
+];
 
 /// Target url to post a reply to another post in thread [tid], forum [fid].
 String formatReplyPostUrl(String fid, String tid) {

@@ -23,6 +23,8 @@ final class UserBriefProfile with UserBriefProfileMappable {
     required this.spirit,
     required this.specialAttr,
     required this.specialAttrName,
+    required this.specialAttr2,
+    required this.specialAttrName2,
     required this.couple,
     required this.privilege,
     required this.registrationDate,
@@ -111,12 +113,16 @@ final class UserBriefProfile with UserBriefProfileMappable {
   final String spirit;
 
   /// Special attr that changes over time.
-  ///
-  /// 龙之印章/西瓜/爱心/金蛋
   final String specialAttr;
 
   /// Name of [specialAttr].
   final String specialAttrName;
+
+  /// Special attr that changes over time.
+  final String? specialAttr2;
+
+  /// Name of [specialAttr].
+  final String? specialAttrName2;
 
   // TODO: Reserve as link.
   /// Couple username.
@@ -162,10 +168,15 @@ final class UserBriefProfile with UserBriefProfileMappable {
       talker.error('failed to build UserBriefProfile: avatar node not found');
       return null;
     }
-    final username = avatarNode.querySelector('div:nth-child(1)')?.innerText;
+    final legacyUsername = avatarNode.querySelector('div:nth-child(1)')?.innerText.trim();
+    final username = legacyUsername?.isNotEmpty ?? false
+        ? legacyUsername
+        : element.querySelector('div#userinfo$postId strong > a')?.innerText.trim();
     // Allow empty value.
     final nickname = avatarNode.querySelector('div:nth-child(2)')?.innerText;
-    final avatarUrl = avatarNode.querySelector('div.avatar > a > img')?.imageUrl();
+    final avatarUrl =
+        avatarNode.querySelector('div.avatar > a > img')?.imageUrl() ??
+        element.querySelector('img.user_avatar')?.imageUrl();
     if (username == null || nickname == null || avatarUrl == null) {
       talker.error(
         'warning when build UserBriefProfile: username or nickname or'
@@ -201,8 +212,9 @@ final class UserBriefProfile with UserBriefProfileMappable {
     String? scheming;
     String? spirit;
     String? specialAttr;
-    // Name of special attr.
     String? specialAttrName;
+    String? specialAttr2;
+    String? specialAttrName2;
     String? couple;
     String? privilege;
     String? registrationDate;
@@ -231,28 +243,18 @@ final class UserBriefProfile with UserBriefProfileMappable {
         '阅读权限:' => privilege = data,
         '注册时间:' => registrationDate = data,
         '来自:' => comeFrom = data,
-        // Special attr that changes over time.
-        // 2024 春节
-        '龙之印章:' => () {
-          specialAttr = data;
-          specialAttrName = '龙之印章';
+        '状态:' => () {
+          /* Do nothing */
         }(),
-        // 2024 夏日
-        '西瓜:' => () {
-          specialAttr = data;
-          specialAttrName = '西瓜';
+        final String v => () {
+          if (specialAttr == null) {
+            specialAttr = data;
+            specialAttrName = v.trim().replaceFirst(':', '');
+          } else {
+            specialAttr2 = data;
+            specialAttrName2 = v.trim().replaceFirst(':', '');
+          }
         }(),
-        // 2024 坛庆
-        '爱心❤:' => () {
-          specialAttr = data;
-          specialAttrName = '爱心';
-        }(),
-        // 2025 春节
-        '金蛋:' => () {
-          specialAttr = data;
-          specialAttrName = '金蛋';
-        }(),
-        _ => '',
       };
     }
 
@@ -277,6 +279,8 @@ final class UserBriefProfile with UserBriefProfileMappable {
       spirit: spirit ?? '',
       specialAttr: specialAttr ?? '',
       specialAttrName: specialAttrName ?? '',
+      specialAttr2: specialAttr2,
+      specialAttrName2: specialAttrName2,
       couple: couple ?? '',
       privilege: privilege ?? '',
       registrationDate: registrationDate ?? '',

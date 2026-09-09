@@ -1,5 +1,4 @@
 import 'package:cookie_jar/cookie_jar.dart';
-import 'package:tsdm_client/constants/constants.dart';
 import 'package:tsdm_client/extensions/string.dart';
 import 'package:tsdm_client/features/settings/repositories/settings_repository.dart';
 import 'package:tsdm_client/instance.dart';
@@ -21,11 +20,7 @@ final class CookieProvider with LoggerMixin implements Storage {
   factory CookieProvider.build() {
     final settings = getIt.get<SettingsRepository>().currentSettings;
     final loggedUid = settings.loginUid;
-    final userInfo = UserLoginInfo(
-      username: settings.loginUsername,
-      uid: loggedUid,
-      // email: settings.loginEmail,
-    );
+    final userInfo = UserLoginInfo(username: settings.loginUsername, uid: loggedUid, email: settings.loginEmail);
     // Valid uid > 0.
     if (loggedUid <= 0) {
       talker.warning('load empty cookie');
@@ -148,7 +143,7 @@ final class CookieProvider with LoggerMixin implements Storage {
     }
 
     // Only save authed cookie into storage.
-    if (!_cookieMap.values.any((e) => e.contains('${cookiePrefix}_auth'))) {
+    if (!containsDiscuzAuthCookie(_cookieMap)) {
       return false;
     }
 
@@ -231,7 +226,7 @@ final class CookieProvider with LoggerMixin implements Storage {
     // Do not update authed cookie with not authed one.
     //
     // TODO: Key is always ".domains" or ".index"
-    if ((_cookieMap[key]?.contains('${cookiePrefix}_auth') ?? false) && !value.contains('${cookiePrefix}_auth')) {
+    if (containsDiscuzAuthCookie(_cookieMap[key]) && !containsDiscuzAuthCookie(value)) {
       return;
     }
     _cookieMap[key] = value;

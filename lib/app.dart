@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_styled_toast/flutter_styled_toast.dart';
+import 'package:tsdm_client/constants/layout.dart';
 import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/features/authentication/repository/authentication_repository.dart';
 import 'package:tsdm_client/features/cache/bloc/image_cache_trigger_cubit.dart';
@@ -12,10 +15,13 @@ import 'package:tsdm_client/features/checkin/bloc/checkin_bloc.dart';
 import 'package:tsdm_client/features/checkin/repository/auto_checkin_repository.dart';
 import 'package:tsdm_client/features/checkin/repository/checkin_repository.dart';
 import 'package:tsdm_client/features/forum/repository/forum_repository.dart';
+import 'package:tsdm_client/features/home/cubit/init_cubit.dart';
+import 'package:tsdm_client/features/local_notice/keys.dart';
 import 'package:tsdm_client/features/notification/bloc/auto_notification_cubit.dart';
 import 'package:tsdm_client/features/notification/bloc/notification_bloc.dart';
 import 'package:tsdm_client/features/notification/bloc/notification_state_auto_sync_cubit.dart';
 import 'package:tsdm_client/features/notification/bloc/notification_state_cubit.dart';
+import 'package:tsdm_client/features/notification/models/models.dart';
 import 'package:tsdm_client/features/notification/repository/notification_info_repository.dart';
 import 'package:tsdm_client/features/notification/repository/notification_repository.dart';
 import 'package:tsdm_client/features/profile/repository/profile_repository.dart';
@@ -30,6 +36,7 @@ import 'package:tsdm_client/features/update/cubit/update_cubit.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/routes/app_routes.dart';
+import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/shared/providers/storage_provider/storage_provider.dart';
 import 'package:tsdm_client/shared/repositories/forum_home_repository/forum_home_repository.dart';
@@ -37,7 +44,17 @@ import 'package:tsdm_client/shared/repositories/fragments_repository/fragments_r
 import 'package:tsdm_client/themes/app_themes.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/utils/platform.dart';
+import 'package:tsdm_client/utils/show_dialog.dart';
+import 'package:tsdm_client/utils/show_toast.dart';
 import 'package:window_manager/window_manager.dart';
+
+extension _SignedInteger on int {
+  String withSign() => this < 0
+      ? '$this'
+      : this > 0
+      ? '+$this'
+      : '0';
+}
 
 /// Main app for tsdm_client.
 class App extends StatefulWidget {
@@ -82,11 +99,14 @@ class _AppState extends State<App> with WindowListener, LoggerMixin {
   /// changes triggered.
   static const _syncDebounceDuration = Duration(milliseconds: 80);
 
+  /// The same value in flutter/lib/src/material/snack_bar.dart;
+  static const Duration _snackBarDisplayDuration = Duration(milliseconds: 4000 - 1000);
+
   /// Temporary store of current window position value.
-  var _windowPosition = Offset.zero;
+  Offset _windowPosition = Offset.zero;
 
   /// Temporary store of current window size value.
-  var _windowSize = Size.zero;
+  Size _windowSize = Size.zero;
 
   /// Timer to debounce the saving progress of window position.
   ///
@@ -131,6 +151,46 @@ class _AppState extends State<App> with WindowListener, LoggerMixin {
     });
   }
 
+  Future<void> showLocalNotification(BuildContext context, NotificationAutoSyncInfo info) async {
+    final tr = context.t.localNotification;
+    final and = AndroidNotificationDetails(
+      'newNoticeChannel',
+      tr.channelName,
+      channelDescription: tr.channelDesc,
+      ticker: tr.ticker,
+    );
+    final nd = NotificationDetails(android: and);
+    final noticeData = switch (info) {
+      NotificationAutoSyncInfoNotice(:final msg, :final notice, :final personalMessage, :final broadcastMessage) =>
+        tr.notice.detail.notice(noticeCount: notice, pmCount: personalMessage, bmCount: broadcastMessage, msg: msg),
+      NotificationAutoSyncInfoPm(
+        :final user,
+        :final msg,
+        :final notice,
+        :final personalMessage,
+        :final broadcastMessage,
+      ) =>
+        tr.notice.detail.pm(
+          noticeCount: notice,
+          pmCount: personalMessage,
+          bmCount: broadcastMessage,
+          user: user,
+          msg: msg,
+        ),
+      NotificationAutoSyncInfoBm(:final msg, :final notice, :final personalMessage, :final broadcastMessage) =>
+        tr.notice.detail.bm(noticeCount: notice, pmCount: personalMessage, bmCount: broadcastMessage, msg: msg),
+    };
+    if (isAndroid) {
+      await flnp.show(
+        id: 0,
+        title: tr.notice.title,
+        body: noticeData,
+        notificationDetails: nd,
+        payload: LocalNoticeKeys.openNotification,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -147,20 +207,37 @@ class _AppState extends State<App> with WindowListener, LoggerMixin {
 
   @override
   Widget build(BuildContext context) {
+    final tr = context.t.globalStatePage;
+
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider<NotificationInfoRepository>(create: (_) => NotificationInfoRepository()),
-        RepositoryProvider<NotificationRepository>(create: (_) => NotificationRepository()),
-        RepositoryProvider<AuthenticationRepository>(create: (_) => AuthenticationRepository()),
+        RepositoryProvider<NotificationInfoRepository>(
+          create: (_) => NotificationInfoRepository(),
+          dispose: (repo) async => repo.dispose(),
+        ),
+        RepositoryProvider<NotificationRepository>(
+          create: (_) => NotificationRepository(),
+          dispose: (repo) async => repo.dispose(),
+        ),
+        RepositoryProvider<AuthenticationRepository>(
+          create: (_) => AuthenticationRepository(),
+          dispose: (repo) async => repo.dispose(),
+        ),
         RepositoryProvider<CheckinRepository>(create: (_) => CheckinRepository(storageProvider: getIt())),
         RepositoryProvider<ForumHomeRepository>(create: (_) => ForumHomeRepository()),
         RepositoryProvider<ProfileRepository>(create: (_) => ProfileRepository()),
         RepositoryProvider<FragmentsRepository>(create: (_) => FragmentsRepository()),
         RepositoryProvider<ForumRepository>(create: (_) => ForumRepository()),
-        RepositoryProvider<ImageCacheRepository>(create: (_) => ImageCacheRepository(getIt())),
+        RepositoryProvider<ImageCacheRepository>(
+          create: (_) => ImageCacheRepository(getIt()),
+          dispose: (repo) async => repo.dispose(),
+        ),
         RepositoryProvider<ImageCacheTriggerCubit>(create: (context) => ImageCacheTriggerCubit(context.repo())),
         RepositoryProvider<ThreadVisitHistoryRepo>(create: (_) => ThreadVisitHistoryRepo(getIt.get<StorageProvider>())),
-        RepositoryProvider<AutoCheckinRepository>(create: (_) => AutoCheckinRepository(storageProvider: getIt())),
+        RepositoryProvider<AutoCheckinRepository>(
+          create: (_) => AutoCheckinRepository(storageProvider: getIt()),
+          dispose: (repo) async => repo.dispose(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -185,33 +262,28 @@ class _AppState extends State<App> with WindowListener, LoggerMixin {
             },
           ),
           BlocProvider(
-            create:
-                (context) => NotificationBloc(
-                  notificationRepository: context.repo(),
-                  infoRepository: context.repo(),
-                  authRepo: context.repo(),
-                  storageProvider: getIt(),
-                ),
+            create: (context) => NotificationBloc(
+              notificationRepository: context.repo(),
+              infoRepository: context.repo(),
+              authRepo: context.repo(),
+              storageProvider: getIt(),
+            ),
           ),
           BlocProvider(
-            create:
-                (context) => SettingsBloc(
-                  fragmentsRepository: context.repo(),
-                  settingsRepository: getIt.get<SettingsRepository>(),
-                ),
+            create: (context) =>
+                SettingsBloc(fragmentsRepository: context.repo(), settingsRepository: getIt.get<SettingsRepository>()),
           ),
           BlocProvider(
-            create:
-                (context) => ThreadVisitHistoryBloc(context.repo())..add(const ThreadVisitHistoryFetchAllRequested()),
+            create: (context) =>
+                ThreadVisitHistoryBloc(context.repo())..add(const ThreadVisitHistoryFetchAllRequested()),
           ),
           // Become top-level because of background auto-checkin feature.
           BlocProvider(
-            create:
-                (context) => CheckinBloc(
-                  checkinRepository: context.repo(),
-                  authenticationRepository: context.repo(),
-                  settingsRepository: getIt(),
-                ),
+            create: (context) => CheckinBloc(
+              checkinRepository: context.repo(),
+              authenticationRepository: context.repo(),
+              settingsRepository: getIt(),
+            ),
           ),
           BlocProvider(
             create: (context) {
@@ -227,46 +299,165 @@ class _AppState extends State<App> with WindowListener, LoggerMixin {
             },
           ),
           BlocProvider(
-            create:
-                (context) => ThemeCubit(
-                  accentColor: widget.color >= 0 ? Color(widget.color) : null,
-                  themeModeIndex: widget.themeModeIndex,
-                  fontFamily: widget.fontFamily,
-                ),
+            create: (context) => ThemeCubit(
+              accentColor: widget.color >= 0 ? Color(widget.color) : null,
+              themeModeIndex: widget.themeModeIndex,
+              fontFamily: widget.fontFamily,
+            ),
           ),
           BlocProvider(
             create: (context) {
               final cubit = UpdateCubit();
               if (widget.checkUpdate) {
-                cubit.checkUpdate(delay: const Duration(seconds: 1), notice: false);
+                // We intend to spawn the check process asynchronously, so do not wait it.
+                unawaited(cubit.checkUpdate(delay: const Duration(seconds: 1), notice: false));
               }
               return cubit;
             },
           ),
           BlocProvider(create: (_) => PointsChangesCubit()),
+          BlocProvider(
+            create: (context) {
+              final settings = context.read<SettingsBloc>().state.settingsMap;
+
+              final cubit = InitCubit();
+              // We intend to delete legacy files asynchronously, so do not wait it.
+              unawaited(cubit.deleteV0LegacyData());
+              if (settings.enableAutoClearImageCache) {
+                unawaited(cubit.autoClearImageCache(Duration(seconds: settings.autoClearImageCacheDuration)));
+              } else {
+                cubit.skipAutoClearImageCache();
+              }
+              unawaited(cubit.autoClearFilePickerCache());
+              return cubit;
+            },
+          ),
         ],
-        child: BlocBuilder<ThemeCubit, ThemeState>(
-          buildWhen: (prev, curr) => prev != curr,
-          builder: (context, state) {
-            final themeState = context.watch<ThemeCubit>().state;
-            final accentColor = themeState.accentColor;
-            final themeModeIndex = themeState.themeModeIndex;
-            final fontFamily = themeState.fontFamily;
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<AutoCheckinBloc, AutoCheckinState>(
+              listenWhen: (prev, curr) => prev is! AutoCheckinStateFinished && curr is AutoCheckinStateFinished,
+              listener: (context, state) {
+                if (state is AutoCheckinStateFinished) {
+                  showSnackBar(
+                    context: context,
+                    message: tr.autoCheckinFinished,
+                    action: SnackBarAction(
+                      label: tr.viewDetail,
+                      onPressed: () async => router.pushNamed(ScreenPaths.autoCheckinDetail),
+                    ),
+                  );
+                }
+              },
+            ),
+            BlocListener<NotificationBloc, NotificationState>(
+              listener: (context, state) {
+                if (state.status == NotificationStatus.loading) {
+                  final autoSyncState = context.read<AutoNotificationCubit>();
+                  if (autoSyncState.state is AutoNoticeStateTicking) {
+                    // Restart the auto notification sync process.
+                    context.read<AutoNotificationCubit>().restart();
+                  }
+                } else if (state.status == NotificationStatus.success) {
+                  // Update last fetch notification time.
+                  // We do it here because it's a global action lives in the entire lifetime of the app, not only when
+                  // the notification page is live. This fixes the critical issue where time not updated.
+                  if (state.latestTime != null) {
+                    context.read<NotificationBloc>().add(NotificationRecordFetchTimeRequested(state.latestTime!));
+                  }
+                }
+              },
+            ),
+            BlocListener<PointsChangesCubit, PointsChangesValue>(
+              listenWhen: (prev, curr) => prev != curr && curr != PointsChangesValue.empty,
+              listener: (context, state) {
+                final tr = context.t.pointsChangesDialog;
 
-            final lightTheme = AppTheme.makeLight(context, seedColor: accentColor, fontFamily: fontFamily);
-            final darkTheme = AppTheme.makeDark(context, seedColor: accentColor, fontFamily: fontFamily);
+                final kinds = <String>[];
+                if (state.ww != 0) {
+                  kinds.add(tr.points.ww(value: state.ww.withSign()));
+                }
+                if (state.tsb != 0) {
+                  kinds.add(tr.points.tsb(value: state.tsb.withSign()));
+                }
+                if (state.xc != 0) {
+                  kinds.add(tr.points.xc(value: state.xc.withSign()));
+                }
+                if (state.tr != 0) {
+                  kinds.add(tr.points.tr(value: state.tr.withSign()));
+                }
+                if (state.fh != 0) {
+                  kinds.add(tr.points.fh(value: state.fh.withSign()));
+                }
+                if (state.jl != 0) {
+                  kinds.add(tr.points.jl(value: state.jl.withSign()));
+                }
+                if (state.specialAttr != 0) {
+                  kinds.add(tr.points.specialAttr(value: state.specialAttr.withSign()));
+                }
+                showToast(
+                  kinds.join(tr.sep),
+                  context: context,
+                  duration: _snackBarDisplayDuration,
+                  position: const StyledToastPosition(align: Alignment.topCenter, offset: kToolbarHeight),
+                  textStyle: Theme.of(context).snackBarTheme.contentTextStyle,
+                  backgroundColor: Theme.of(context).snackBarTheme.backgroundColor,
+                );
+              },
+            ),
+            BlocListener<NotificationStateAutoSyncCubit, NotificationAutoSyncInfo?>(
+              listenWhen: (prev, curr) => curr != null && prev != curr,
+              listener: (context, state) async {
+                await showLocalNotification(context, state!);
+              },
+            ),
+            BlocListener<InitCubit, InitState>(
+              listenWhen: (prev, curr) => prev.v0LegacyDataDeleted != curr.v0LegacyDataDeleted,
+              listener: (context, state) async {
+                if (!state.v0LegacyDataDeleted) {
+                  return;
+                }
+                final tr = context.t.init.v1DeleteLegacyData;
+                await showMessageSingleButtonDialog(context: context, title: tr.title, message: tr.detail);
+              },
+            ),
+          ],
+          child: BlocBuilder<ThemeCubit, ThemeState>(
+            buildWhen: (prev, curr) => prev != curr,
+            builder: (context, state) {
+              final themeState = context.watch<ThemeCubit>().state;
+              final accentColor = themeState.accentColor;
+              final themeModeIndex = themeState.themeModeIndex;
+              final fontFamily = themeState.fontFamily;
+              final textScaleFactor = context.select<SettingsBloc, double>(
+                (bloc) => bloc.state.settingsMap.textScaleFactor,
+              );
 
-            return MaterialApp.router(
-              title: context.t.appName,
-              routerConfig: router,
-              locale: TranslationProvider.of(context).flutterLocale,
-              supportedLocales: AppLocaleUtils.supportedLocales,
-              localizationsDelegates: GlobalMaterialLocalizations.delegates,
-              theme: lightTheme,
-              darkTheme: darkTheme,
-              themeMode: ThemeMode.values[themeModeIndex],
-            );
-          },
+              final lightTheme = AppTheme.makeLight(context, seedColor: accentColor, fontFamily: fontFamily);
+              final darkTheme = AppTheme.makeDark(context, seedColor: accentColor, fontFamily: fontFamily);
+
+              return MaterialApp.router(
+                title: context.t.appName,
+                routerConfig: router,
+                locale: TranslationProvider.of(context).flutterLocale,
+                supportedLocales: AppLocaleUtils.supportedLocales,
+                localizationsDelegates: GlobalMaterialLocalizations.delegates,
+                theme: lightTheme,
+                darkTheme: darkTheme,
+                themeMode: ThemeMode.values[themeModeIndex],
+                scaffoldMessengerKey: snackbarKey,
+                builder: (context, child) {
+                  final data = MediaQuery.of(context);
+                  return MediaQuery(
+                    data: data.copyWith(
+                      textScaler: TextScaler.linear(textScaleFactor)..clamp(minScaleFactor: 0.7, maxScaleFactor: 1.5),
+                    ),
+                    child: child ?? sizedBoxEmpty,
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

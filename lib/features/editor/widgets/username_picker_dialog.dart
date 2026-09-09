@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,9 +8,11 @@ import 'package:tsdm_client/extensions/build_context.dart';
 import 'package:tsdm_client/extensions/list.dart';
 import 'package:tsdm_client/features/editor/bloc/user_mention_cubit.dart';
 import 'package:tsdm_client/features/editor/repository/editor_repository.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/utils/logger.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// Small text to show username.
 class _UsernameText extends StatelessWidget {
@@ -37,8 +41,10 @@ class _UsernameText extends StatelessWidget {
 ///
 /// This dialog wrapped extra functionality more than the original one in editor
 /// package so that user could do the same quick search as what server provides.
-Future<String?> showUsernamePickerDialog(BuildContext context, {String? username}) async =>
-    showDialog<String>(context: context, builder: (_) => _UsernamePickerDialog(username));
+Future<String?> showUsernamePickerDialog(BuildContext context, {String? username}) async => showDialog<String>(
+  context: context,
+  builder: (_) => RootPage(DialogPaths.usernamePicker, _UsernamePickerDialog(username)),
+);
 
 /// A dialog to let user pick user to mention.
 ///
@@ -85,17 +91,16 @@ class _UsernamePickerDialogState extends State<_UsernamePickerDialog> with Logge
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: tr.username,
-                  suffixIcon:
-                      userNameNotEmpty
-                          ? IconButton(
-                            icon: const Icon(Icons.open_in_new),
-                            onPressed:
-                                () async => context.pushNamed(
-                                  ScreenPaths.profile,
-                                  queryParameters: {'username': controller.text.trim()},
-                                ),
-                          )
-                          : null,
+                  suffixIcon: userNameNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.open_in_new),
+                          tooltip: tr.viewUserSpaceTip,
+                          onPressed: () async => context.pushNamed(
+                            ScreenPaths.profile,
+                            queryParameters: {'username': controller.text.trim()},
+                          ),
+                        )
+                      : null,
                 ),
                 validator: (v) => v == null || v.isEmpty ? tr.errorEmpty : null,
               ),
@@ -104,13 +109,12 @@ class _UsernamePickerDialogState extends State<_UsernamePickerDialog> with Logge
             TextButton(
               // Only available when form hash is not null.
               // Currently means friend recommendation succeeded.
-              onPressed:
-                  userNameNotEmpty && state.formHash != null && state.searchStatus != UserMentionStatus.loading
-                      ? () async => context.read<UserMentionCubit>().searchUserByName(
-                        keyword: controller.text.trim(),
-                        formHash: state.formHash!,
-                      )
-                      : null,
+              onPressed: userNameNotEmpty && state.formHash != null && state.searchStatus != UserMentionStatus.loading
+                  ? () async => context.read<UserMentionCubit>().searchUserByName(
+                      keyword: controller.text.trim(),
+                      formHash: state.formHash!,
+                    )
+                  : null,
               child: Text(tr.search),
             ),
           ],
@@ -143,10 +147,10 @@ class _UsernamePickerDialogState extends State<_UsernamePickerDialog> with Logge
             Text(tr.randomFriend, style: Theme.of(context).textTheme.labelLarge),
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed:
-                  state.recommendStatus == UserMentionStatus.loading
-                      ? null
-                      : () async => context.read<UserMentionCubit>().recommendFriend(),
+              tooltip: tr.refreshRecommendTip,
+              onPressed: state.recommendStatus == UserMentionStatus.loading
+                  ? null
+                  : () async => context.read<UserMentionCubit>().recommendFriend(),
             ),
           ],
         ),
@@ -185,33 +189,43 @@ class _UsernamePickerDialogState extends State<_UsernamePickerDialog> with Logge
     return MultiBlocProvider(
       providers: [
         RepositoryProvider(create: (_) => EditorRepository()),
-        BlocProvider(create: (context) => UserMentionCubit(context.repo())..recommendFriend()),
+        BlocProvider(
+          create: (context) {
+            final cubit = UserMentionCubit(context.repo());
+            // TODO: Make it sync.
+            unawaited(cubit.recommendFriend());
+            return cubit;
+          },
+        ),
       ],
       child: BlocBuilder<UserMentionCubit, UserMentionState>(
-        builder:
-            (context, state) => AlertDialog(
-              title: Text(tr.title),
-              scrollable: true,
-              content: Form(
-                key: formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [_buildSearch(context, state), sizedBoxW16H16, _buildRandomFriend(context, state)],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    if (!formKey.currentState!.validate()) {
-                      return;
-                    }
-                    context.pop(controller.text);
-                  },
-                  child: Text(context.t.general.ok),
-                ),
+        builder: (context, state) => CustomAlertDialog.sync(
+          title: Text(tr.title),
+          content: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                sizedBoxW8H8,
+                _buildSearch(context, state),
+                sizedBoxW16H16,
+                _buildRandomFriend(context, state),
               ],
             ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) {
+                  return;
+                }
+                context.pop(controller.text);
+              },
+              child: Text(context.t.general.ok),
+            ),
+          ],
+        ),
       ),
     );
   }

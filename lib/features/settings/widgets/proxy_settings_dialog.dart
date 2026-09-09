@@ -8,6 +8,7 @@ import 'package:tsdm_client/features/settings/bloc/settings_bloc.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/shared/models/models.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// Dialog for proxy settings.
 ///
@@ -104,8 +105,7 @@ class _ProxySettingsDialogState extends State<ProxySettingsDialog> {
   @override
   Widget build(BuildContext context) {
     final tr = context.t.settingsPage.advancedSection.proxySettings;
-    return AlertDialog(
-      scrollable: true,
+    return CustomAlertDialog.sync(
       title: Text(tr.title),
       content: Form(
         key: formKey,

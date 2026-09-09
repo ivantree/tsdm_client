@@ -87,7 +87,12 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
     final title = document.querySelector('div#ct h1.xs2 > a')?.innerText;
     List<StickThread>? stickThreadList;
     List<Forum>? subredditList;
-    final normalThreadList = _buildThreadList<NormalThread>(document, 'tsdm_normalthread', NormalThread.fromTBody);
+    final normalThreadList = _buildThreadList<NormalThread>(
+      document,
+      'tsdm_normalthread',
+      'normalthread_',
+      NormalThread.fromTBody,
+    );
 
     // Always parse the latest result of pinned contents.
     // As we allow direct access from url and thread page header, where has no complete pinned contents recorded
@@ -95,7 +100,12 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
     // the complete result when accessing without filters.
     //
     // Always parse it and use it if necessary.
-    stickThreadList = _buildThreadList<StickThread>(document, 'tsdm_stickthread', StickThread.fromTBody);
+    stickThreadList = _buildThreadList<StickThread>(
+      document,
+      'tsdm_stickthread',
+      'stickthread_',
+      StickThread.fromTBody,
+    );
     subredditList = _buildForumList(document, state.fid);
 
     var needLogin = false;
@@ -122,57 +132,53 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
     final totalPages = document.totalPages();
 
     // Update thread filter config.
-    final filterTypeList =
-        document
-            .querySelector('ul#thread_types')
-            ?.querySelectorAll('li > a')
-            .where((e) => e.innerText.isNotEmpty)
-            .map(
-              (e) => FilterType(
-                name: e.innerText.trim(),
-                typeID: _typeIDRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('id'),
-              ),
-            )
-            .toList();
+    final filterTypeList = document
+        .querySelector('ul#thread_types')
+        ?.querySelectorAll('li > a')
+        .where((e) => e.innerText.isNotEmpty)
+        .map(
+          (e) => FilterType(
+            name: e.innerText.trim(),
+            typeID: _typeIDRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('id'),
+          ),
+        )
+        .toList();
 
-    final filterSpecialTypeList =
-        document
-            .querySelector('div#filter_special_menu')
-            ?.querySelectorAll('ul > li > a')
-            .where((e) => e.innerText.isNotEmpty)
-            .map(
-              (e) => FilterSpecialType(
-                name: e.innerText.trim(),
-                specialType: _specialTypeRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('type'),
-              ),
-            )
-            .toList();
+    final filterSpecialTypeList = document
+        .querySelector('div#filter_special_menu')
+        ?.querySelectorAll('ul > li > a')
+        .where((e) => e.innerText.isNotEmpty)
+        .map(
+          (e) => FilterSpecialType(
+            name: e.innerText.trim(),
+            specialType: _specialTypeRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('type'),
+          ),
+        )
+        .toList();
 
-    final filterOrderList =
-        document
-            .querySelector('div#filter_orderby_menu')
-            ?.querySelectorAll('ul > li > a')
-            .where((e) => e.innerText.isNotEmpty)
-            .map(
-              (e) => FilterOrder(
-                name: e.innerText.trim(),
-                orderBy: _orderByRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('orderby'),
-              ),
-            )
-            .toList();
+    final filterOrderList = document
+        .querySelector('div#filter_orderby_menu')
+        ?.querySelectorAll('ul > li > a')
+        .where((e) => e.innerText.isNotEmpty)
+        .map(
+          (e) => FilterOrder(
+            name: e.innerText.trim(),
+            orderBy: _orderByRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('orderby'),
+          ),
+        )
+        .toList();
 
-    final filterDatelineList =
-        document
-            .querySelector('div#filter_dateline_menu')
-            ?.querySelectorAll('ul > li > a')
-            .where((e) => e.innerText.isNotEmpty)
-            .map(
-              (e) => FilterDateline(
-                name: e.innerText.trim(),
-                dateline: _datelineRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('dateline'),
-              ),
-            )
-            .toList();
+    final filterDatelineList = document
+        .querySelector('div#filter_dateline_menu')
+        ?.querySelectorAll('ul > li > a')
+        .where((e) => e.innerText.isNotEmpty)
+        .map(
+          (e) => FilterDateline(
+            name: e.innerText.trim(),
+            dateline: _datelineRe.firstMatch(e.attributes['href'] ?? '')?.namedGroup('dateline'),
+          ),
+        )
+        .toList();
 
     var producedState = state.copyWith(
       status: ForumStatus.success,
@@ -206,10 +212,14 @@ class ForumBloc extends Bloc<ForumEvent, ForumState> with LoggerMixin {
   List<T> _buildThreadList<T extends NormalThread>(
     uh.Document document,
     String threadClass,
+    String idPrefix,
     T? Function(uh.Element element) threadBuilder,
   ) {
-    final threadList =
-        document.querySelectorAll('tbody.$threadClass').map((e) => threadBuilder(e)).whereType<T>().toList();
+    final threadList = document
+        .querySelectorAll('tbody.$threadClass, tbody[id^="$idPrefix"]')
+        .map((e) => threadBuilder(e))
+        .whereType<T>()
+        .toList();
     return threadList;
   }
 

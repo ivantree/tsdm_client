@@ -22,7 +22,10 @@
     "minutes": "${value: int} minutes",
     "hours": "${value: int} hours",
     "days": "${value: int} days",
-    "now": "Now"
+    "now": "Now",
+    "settings": "Settings",
+    "openInBrowser": "Open in browser",
+    "close": "Close"
   },
   "navigation": {
     "homepage": "Home",
@@ -42,7 +45,8 @@
       "checkin": "Checkin",
       "myThread": "My thread",
       "latestThread": "Latest thread"
-    }
+    },
+    "showMoreUserOperationsTip": "Show more user operations"
   },
   "topicPage": {
     "title": "Topics",
@@ -103,6 +107,50 @@
           "view": "103000",
           "lastReplyAuthor": "桐ヶ谷和人",
           "threadType": "Daydream"
+        },
+        "showHelpTip": "Show tips on thread card",
+        "attrs": {
+          "help": "What the icons mean",
+          "closed": {
+            "title": "Closed",
+            "detail": "Thread is closed and cannot be replied to."
+          },
+          "upVoted": {
+            "title": "Up voted",
+            "detail": "Thread is up voted by other users"
+          },
+          "pictureAttached": {
+            "title": "Picture attached",
+            "detail": "Thread has attached picture"
+          },
+          "digested": {
+            "title": "Digested",
+            "detail": "Most valuable thread"
+          },
+          "pinnedGlobally": {
+            "title": "Pinned globally",
+            "detail": "Pinned across the forum"
+          },
+          "pinnedInType": {
+            "title": "Pinned thread type",
+            "detail": "Pinned across current thread type"
+          },
+          "pinnedInSubreddit": {
+            "title": "Pinned in subreddit",
+            "detail": "Pinned across current subreddit"
+          },
+          "vote": {
+            "title": "Voting content",
+            "detail": "Thread is voting content"
+          },
+          "rewarded": {
+            "title": "Bounty",
+            "detail": "Asking for something and reward is provided"
+          },
+          "draft": {
+            "title": "Draft",
+            "detail": "Thread is in draft state, not published yet"
+          }
         }
       },
       "unreadNoticeBadge": "Unread notice badge",
@@ -112,6 +160,10 @@
       "fontFamily": {
         "title": "Font family",
         "dialogTitle": "Choose font"
+      },
+      "textScaleFactor": {
+        "title": "Text scale",
+        "dialogTitle": "Text scale factor"
       }
     },
     "windowSection": {
@@ -132,10 +184,6 @@
     },
     "behaviorSection": {
       "title": "Behavior",
-      "doublePressExit": {
-        "title": "Double Press Back To Exit",
-        "detail ": "Avoid accidentally exiting the app"
-      },
       "threadReverseOrder": {
         "title": "View posts in reverse order",
         "detail": "In thread, view latest posts first"
@@ -145,8 +193,21 @@
         "detail": "Duration of auto sync notice from server"
       },
       "editorBBCodeParser": {
-        "title": "Enable bbcode parser (experimental)",
-        "detail": "Achieve WYSIWYG when editing thread content"
+        "title": "Enable bbcode parser",
+        "tip": {
+          "title": "What is BBCode parser",
+          "detail": "BBCode parser converts plain text BBCode into WYSIWYG content when:\n\n1. Editing published thread\n2. Editing reply templates\n3. Insert reply templates\n4. Expand bottom editor in thread and chat page\n\nDisabling BBCode parser will leave plain text to edit, turn if off when you get bugs."
+        }
+      },
+      "collapseAppBarWhenScroll": {
+        "title": "Hide app bar when scroll",
+        "detail": "Hide when scroll down in subreddit and thread pages"
+      },
+      "threadFloorInteractionMode": {
+        "title": "Interaction on thread floor",
+        "detail": "Interaction on floors in thread page",
+        "adaptiveTapOpenContextMenu": "Open context menu when long press or right click",
+        "tapToReply": "Set floor as reply target when tap"
       }
     },
     "checkinSection": {
@@ -165,8 +226,24 @@
       "downloadAgainInfo": "The necessary cache will be downloaded from the server again",
       "images": "Images",
       "emoji": "Emoji",
+      "log": "Log",
       "selectOneCache": "Need to select at least one kind of cache",
-      "clearSuccess": "Cleared successfully"
+      "clearSuccess": "Cleared successfully",
+      "scheduledCleaning": {
+        "title": "Auto clear image",
+        "details": "Clear long time not used image cache when app start",
+        "duration": {
+          "title": "Auto clear image duration",
+          "detail": "Images that not used for more than this amount of time will be cleared",
+          "6h": "6 hours",
+          "12h": "12 hours",
+          "1d": "1 day",
+          "3days": "3 days",
+          "7days": "7 days",
+          "15days": "15 days",
+          "30days": "30 days"
+        }
+      }
     },
     "advancedSection": {
       "title": "Advanced",
@@ -184,7 +261,12 @@
           "testing": "Testing...",
           "connected": "Proxy is running",
           "disconnected": "Proxy may not running"
-        }
+        },
+        "useDetectProxy": {
+          "title": "Auto detect proxy",
+          "detail": "Use the detected proxy settings when app startup"
+        },
+        "automatedOnPlatform": "Proxy settings are automatically configured on this platform"
       },
       "exportData": "Export data",
       "importData": {
@@ -207,6 +289,11 @@
       "viewLog": {
         "title": "View log"
       },
+      "viewHistoryLog": {
+        "title": "View historical log",
+        "historicalLogs": "Historical logs",
+        "export": "Export"
+      },
       "copyDatabaseDir": "Copy database path"
     },
     "othersSection": {
@@ -228,7 +315,8 @@
     "version": "App Version",
     "flutterVersion": "Flutter Version",
     "dartVersion": "Dart Version",
-    "license": "License"
+    "license": "License",
+    "copyEnvironmentInfo": "Copy environment info"
   },
   "loginPage": {
     "title": "Login TSDM",
@@ -369,7 +457,8 @@
     },
     "tooltip": {
       "fab": "Post new thread"
-    }
+    },
+    "copyFid": "Copy fid(${fid: String})"
   },
   "threadPage": {
     "title": "Thread",
@@ -384,7 +473,17 @@
       "title": "Operation Log"
     },
     "softCloseHint": "Thread is closed, be attention before posting",
-    "statistics": "${view: int} views ${reply: int} count"
+    "statistics": "${view: int} views ${reply: int} count",
+    "threadInfo": {
+      "title": "Thread info",
+      "threadTitle": "Title",
+      "threadID": "ID",
+      "threadUrl": "Url",
+      "threadUrlWithDomain": "Url (with domain)",
+      "threadUrlBBCode": "Url BBCode",
+      "threadUrlBBCodeWithDomain": "Url BBCode (with domain)"
+    },
+    "copyTid": "Copy tid(${tid: String})"
   },
   "noticePage": {
     "title": "Notifications",
@@ -487,7 +586,8 @@
     "unknownAllowedRange": "Unknown allowed range $range",
     "onlyAllowIntegers": "Only integers are allowed",
     "failedToRate": "Rate failed",
-    "scoreTodayRemaining": "Today Remaining $score"
+    "scoreTodayRemaining": "Today Remaining $score",
+    "fillWithTemplate": "Fill with template"
   },
   "pointsPage": {
     "title": "Points Statistics",
@@ -501,7 +601,9 @@
       "changeType": "Change Type",
       "operationType": "Operation Type",
       "dateRange": "Date Range",
-      "query": "Query"
+      "query": "Query",
+      "showFilterTip": "Show filter",
+      "hideFilterTip": "Hide filter"
     }
   },
   "postEditPage": {
@@ -543,6 +645,19 @@
     "whyTitleDialog": {
       "title": "Why here is a thread title?",
       "detail": "Not weired to have a title here when drafting a new thread or editing the first floor of the thread.\nBut it always presents because other floors also have \"subject\" fields to add some <h2> style text ahead of the body of post."
+    },
+    "portation": {
+      "title": "Import and Export",
+      "tip": "Be careful! Paste and import contents will overwrite all contents you editing and thread additional options (if any).",
+      "typesTip": "BBCode only reserve content; Quill Delta reserves both content and thread options",
+      "copyBBCode": "Copy BBCode",
+      "pasteBBCode": "Paste BBCode",
+      "exportBBCode": "Export BBCode",
+      "importBBCode": "Import BBCode",
+      "copyQuilllDelta": "Copy Quill Delta",
+      "pasteQuillDelta": "Paste Quill Delta",
+      "exportQuillDelta": "Export Quill Delta",
+      "importQuillDelta": "Import Quill Delta"
     }
   },
   "chatHistoryPage": {
@@ -557,18 +672,21 @@
     "success": "Sent successfully",
     "failed": "Sent failed: $message",
     "online": "[Online]",
-    "offline": "[Offline]"
+    "offline": "[Offline]",
+    "viewUserSpaceTip": "View user space",
+    "viewChatHistoryTip": "ViewChatHistory"
   },
   "imageDetailPage": {
     "title": "Image detail",
     "statistics": "Detail statistic",
     "failedToLoadWithReason": "Failed to load image: ${reason: String}",
     "failedToLoad": "Failed to load",
-    "url": "Url: ${url: String}",
-    "size": "Size: ${width: int} x ${height: int}",
-    "cacheName": "Cache name: ${name: String}",
-    "cacheSize": "Cache size: ${size: String}",
-    "usage": "Usage: ${usage: String}"
+    "url": "Url",
+    "sizeTitle": "Size",
+    "sizeValue": "${width: int} x ${height: int}",
+    "cacheName": "Cache name",
+    "cacheSize": "Cache size",
+    "usage": "Usage"
   },
   "forumCard": {
     "links": "Links",
@@ -628,12 +746,22 @@
     "blocked": {
       "title": "Blocked content",
       "detail": "This post has been blocked by administrator or moderator"
+    },
+    "sale": {
+      "title": "Selling content",
+      "detail": "Price: ${price: String} coins.\n${count: String} users have purchased.",
+      "viewLog": "View sales history",
+      "dialog": {
+        "title": "Sales history",
+        "price": "${price: String} coins"
+      }
     }
   },
   "rateCard": {
     "title": "Rate log ($userCount)",
     "total": "Total: $total",
-    "user": "User"
+    "user": "User",
+    "viewAll": "View all rates"
   },
   "jumpDialog": {
     "title": "Jump to page ..."
@@ -665,7 +793,8 @@
         "title": "Custom",
         "colorValue": "Color value",
         "invalidColor": "Invalid color",
-        "formatTip": "Enter color name (e.g. darkorange, DarkOrange) or hex color value (e.g. f0c, ff00cc, 14d084)"
+        "formatTip": "Enter color name (e.g. darkorange, DarkOrange) or hex color value (e.g. f0c, ff00cc, 14d084)",
+        "recentColor": "Recent color"
       }
     }
   },
@@ -719,14 +848,16 @@
     },
     "share": "Copy share link",
     "openInBrowser": "Open in browser",
-    "copyText": "Copy Text"
+    "copyText": "Copy Text",
+    "copyPid": "Copy pid (${pid: String})"
   },
   "packetCard": {
     "title": "Packet",
     "detail": "You found a packet!",
     "open": "Open It",
     "failedToOpen": "Failed to open",
-    "allTakenAway": "All packets were taken away"
+    "allTakenAway": "All packets were taken away",
+    "viewReceiveHistory": "View receive history"
   },
   "bountyCard": {
     "title": "Bounty",
@@ -741,6 +872,11 @@
     "experimentalInfo": "Experimental BBCode Editor",
     "experimentalInfoTitle": "Experimental BBCode Editor",
     "experimentalInfoDetail": "This bbcode editor supports WYSIWYG and provides convenient ways to add text styles and other rich text components.\nIt is still in experimental state which means: Already tested but may not behave as expected.",
+    "expandToolbar": "Expand toolbar",
+    "collapsedToolbar": "Collapse toolbar",
+    "toolbar": "Toolbar",
+    "additionalOptions": "Additional options",
+    "readPerm": "Perm to required",
     "emoji": {
       "title": "Emoji",
       "downloading": "Downloading emoji (10MB), this may take a while...",
@@ -752,7 +888,8 @@
       "link": "Url link",
       "errorEmpty": "Should not be empty",
       "autoPaste": {
-        "tip": "Paste bilibili share link",
+        "action": "Paste bilibili share link",
+        "tip": "Check help for auto paste",
         "detail": "Paste bilibili video share link from clipboard. \nFormat is 【VIDEO_NAME】 https://www.bilibili.com/VIDEO_ID"
       }
     },
@@ -782,7 +919,9 @@
       "visitUserSpace": "Visit user space",
       "search": "Search",
       "searchResult": "Result",
-      "randomFriend": "Random friend"
+      "randomFriend": "Random friend",
+      "viewUserSpaceTip": "View user space",
+      "refreshRecommendTip": "Refresh recommended friends"
     }
   },
   "imageBottomSheet": {
@@ -790,7 +929,10 @@
     "checkDetail": "Check details",
     "copyImageUrl": "Copy image url",
     "reloadImage": "ReloadImage",
-    "openLink": "Open link"
+    "openLink": "Open link",
+    "saveImage": "Save image",
+    "imageSaved": "Image saved at ${filePath: String}",
+    "failedToSaveImage": "Failed to save image"
   },
   "init": {
     "v1DeleteLegacyData": {
@@ -812,12 +954,39 @@
     "title": "Thread browsing history",
     "localOnlyTip": "Only local browsing history was recorded, may be different on web side or other machines"
   },
-  "parseUrlDialog": {
-    "title": "Open url in app",
-    "detail": "Redirect to any forum urls that app supports",
-    "entryTooltip": "Open url in app",
-    "url": "Url",
-    "unsupportedUrl": "Unsupported url",
+  "openInAppPage": {
+    "title": "Open in app",
+    "entryTooltip": "Open page in app",
+    "url": {
+      "title": "Url",
+      "detail": "Open any forum urls that app supports",
+      "unsupportedUrl": "Unsupported url"
+    },
+    "uid": {
+      "title": "User id (uid)",
+      "detail": "Open user profile page. Uid can be found in user profile and many other places",
+      "invalidUid": "Invalid uid"
+    },
+    "username": {
+      "title": "Username",
+      "detail": "Open user profile page. Username can be found in user profile and many other places",
+      "invalidUsername": "Invalid username"
+    },
+    "fid": {
+      "title": "Forum id (fid)",
+      "detail": "Open subreddit page. Subreddit can be found in subreddit pages and urls",
+      "invalidFid": "Invalid fid"
+    },
+    "tid": {
+      "title": "Thread id (tid)",
+      "detail": "Open thread page. Tid can be found in thread pages and share links",
+      "invalidTid": "Invalid tid"
+    },
+    "pid": {
+      "title": "Post id (pid)",
+      "detail": "Find specified post. Pid can be found in share link of each floor",
+      "invalidPid": "Invalid pid"
+    },
     "open": "Open"
   },
   "globalStatePage": {
@@ -856,7 +1025,12 @@
   },
   "packetDetailPage": {
     "title": "Packet details",
-    "statistics": "${users: int} users got ${coins: int} coins in ${time: String}"
+    "statistics": "${users: int} users got ${coins: int} coins in ${time: String}",
+    "sort": {
+      "sortByMostCoins": "Sort by most coins",
+      "sortByLeastCoins": "Sort by least coins",
+      "sortByTime": "Sort by time"
+    }
   },
   "pollCard": {
     "title": "Poll",
@@ -930,7 +1104,154 @@
       "tr": "tr ${value: String}",
       "fh": "fh ${value: String}",
       "jl": "jl ${value: String}",
-      "specialAttr": "special points ${value: String}"
+      "specialAttr": "special points ${value: String}",
+      "specialAttr2": "special2 points ${value: String}"
     }
+  },
+  "fastRateTemplate": {
+    "title": "Rate Templates",
+    "details": "Templates to fill values when rating",
+    "choose": "Choose one template to fill in the values",
+    "name": "Template name",
+    "ww": "Famous",
+    "tsb": "Coins",
+    "xc": "Publicity",
+    "jl": "Spirit",
+    "tr": "Natural",
+    "fh": "Scheming",
+    "special": "Special",
+    "special2": "Special2",
+    "new": "New",
+    "empty": "No rate templates available",
+    "delete": "Delete rate template",
+    "edit": "Edit template",
+    "pick": "Pick template",
+    "deleteConfirm(rich)": "Are you sure to delete the rate template \"${name: String}\"? This can not be undone",
+    "editPageTitle": "New rate template",
+    "editPageAlreadyExists": "Same name template already exists",
+    "editPageOverride": "Override same name template",
+    "editPageTemplateAdded": "Rate template added",
+    "editPage": {
+      "nameNotEmpty": "Name shall not be empty",
+      "invalidValue": "Invalid value"
+    }
+  },
+  "fastReplyTemplate": {
+    "title": "Reply templates",
+    "details": "Templates to fill when replying",
+    "choose": "Choose one template to fill the content",
+    "name": "Template name",
+    "content": "Content",
+    "empty": "No reply templates available",
+    "edit": "Edit template",
+    "pick": "Pick template",
+    "delete": "Delete reply template",
+    "deleteConfirm(rich)": "Are you sure to delete the reply template \"${name: String}\"? This can not be undone",
+    "editPageTitle": "New reply template",
+    "editPageAlreadyExists": "Same name template already exists",
+    "editPageOverride": "Override same name template",
+    "editPageTemplateAdded": "Reply template added",
+    "editPageNameNotEmpty": "Name shall not be empty",
+    "editPageSaveTemplate": "Save template"
+  },
+  "copyDialog": {
+    "copyTitle": "Copy",
+    "copySelectTitle": "Select and copy",
+    "copyAll": "Copy all",
+    "share": "Share",
+    "close": "Close"
+  },
+  "copyButton": {
+    "copyTip": "Copy",
+    "copied": "Copied"
+  },
+  "rateLogPage": {
+    "title": "Rate log",
+    "tabs": {
+      "accumulated": "Accumulated",
+      "original": "Original"
+    },
+    "total": "Total rates",
+    "showTotalRatePointsTip": "Show total rate points"
+  },
+  "replyBar": {
+    "notReplyToFloorTip": "Not reply to this floor",
+    "expandToolbarTip": "Expand toolbar",
+    "collapseToolbarTip": "Collapse toolbar"
+  },
+  "workaroundRedirect": "View conversation",
+  "threadCard": {
+    "viewInfo": "View thread info"
+  },
+  "myTitlesPage": {
+    "title": "My titles",
+    "current": "ON",
+    "unset": "Unset",
+    "openTitleShop": "Visit title shop (in browser)",
+    "noneActivated": "None secondary title activated",
+    "activated": "Activated: ${name: String}"
+  },
+  "editUserProfilePage": {
+    "title": "Edit profile",
+    "save": "Save profile",
+    "saveSuccess": "Save success",
+    "saveFailed": "Save failed",
+    "visibility": {
+      "title": "Privacy",
+      "public": "Public",
+      "friendsOnly": "Friends only",
+      "private": "Private"
+    },
+    "username": "Username",
+    "gender": {
+      "title": "Gender",
+      "male": "Male",
+      "female": "Female",
+      "hide": "Hide"
+    },
+    "birthday": {
+      "title": "Birthday",
+      "year": "Year",
+      "month": "Month",
+      "day": "Day"
+    },
+    "qq": {
+      "title": "QQ",
+      "invalidQQ": "Invalid qq"
+    },
+    "msn": "MSN",
+    "homepage": "Homepage",
+    "bio": "Bio",
+    "hobby": "Hobby",
+    "location": "Location",
+    "nickname": "Nickname",
+    "wordsToSay": "Words to say",
+    "skills": "Skills",
+    "favoriteBangumi": "Favorite bangumi",
+    "pageStyle": {
+      "title": "Web page style",
+      "tip": "No effect on app"
+    },
+    "customTitle": "Custom title",
+    "signature": "Signature",
+    "timezone": "Timezone"
+  },
+  "urlInfoBottomSheet": {
+    "title": "Url info",
+    "recognizeResult": "Recognize result",
+    "target": "This link leads to: ",
+    "urlTypes": {
+      "external": {
+        "title": "External urls",
+        "detail": "external website outside of TSDM. Be careful you are leaving TSDM via this url"
+      },
+      "internal": {
+        "title": "Internal urls",
+        "detail": "internal pages of TSDM."
+      }
+    },
+    "copyUrl": "Copy url",
+    "open": "Open",
+    "openInBrowser": "Open in browser"
   }
 }

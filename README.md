@@ -15,13 +15,9 @@
   <a href="https://github.com/realth000/tsdm_client/releases"><img src="https://img.shields.io/github/release/realth000/tsdm_client?label=release" alt="release"></a>
   <a href="https://github.com/realth000/tsdm_client/releases"><img src="https://img.shields.io/badge/platform-Android_%7C_iOS_%7C_Linux_%7C_macOS_%7C_Windows-19A6E6" alt="platforms"></a>
   <a href="https://github.com/realth000/tsdm_client/releases"><img src="https://img.shields.io/github/downloads/realth000/tsdm_client/total" alt="download_total"></a>
-  <a href="https://flutter.dev/"><img src="https://img.shields.io/badge/Flutter-3.29-19A6E6?logo=flutter" alt="flutter_version"></a>
+  <a href="https://flutter.dev/"><img src="https://img.shields.io/badge/Flutter-3.41-19A6E6?logo=flutter" alt="flutter_version"></a>
   <a href="https://dart.dev/"><img src="https://img.shields.io/github/languages/top/realth000/tsdm_client?logo=dart" alt="dart_percentage"/></a>
 </p>
-
-> [!TIP]
->
-> 受测试条件限制，标注为已实现的功能也可能有缺陷，欢迎提issue或PR。
 
 ## 截图
 
@@ -56,21 +52,66 @@
 
 ## 下载
 
+### 系统要求
+
 <div align="left">
   <table>
     <thead align="left">
      <tr>
+       <th>系统</th>
+       <th>支持的版本</th>
+     </tr>
+    </thead>
+  <tbody>
+    <tr>
+      <td>Android</td>
+      <td>安卓7.0（API 24）及以上</td>
+    </tr>
+    <tr>
+      <td>iOS</td>
+      <td>12.0及以上</td>
+    </tr>
+    <tr>
+      <td>Linux</td>
+      <td>Ubuntu 2404同时期（libc >= 2.39）及以上</td>
+    </tr>
+    <tr>
+      <td>macOS</td>
+      <td>10.14以以上</td>
+    </tr>
+    <tr>
+      <td>Windows</td>
+      <td>10及以上</td>
+    </tr>
+  </tbody>
+  </table>
+</div>
+
+### 下载渠道
+
+<div align="left">
+  <table>
+    <thead align="left">
+     <tr>
+       <th>渠道</th>
        <th>系统</th>
        <th>版本</th>
      </tr>
     </thead>
   <tbody>
     <tr>
+      <td>论坛</td>
+      <td>all</td>
+      <td>
+        <a href="https://www.tsdm39.com/forum.php?mod=viewthread&tid=628244"><img src="https://img.shields.io/badge/all-universal-blue.svg?logo=&logoColor=white" alt="forum_announcement"/></a><br>
+      </td>
+    </tr>
+    <tr>
+      <td rowspan="5">GitHub</td>
       <td>Android</td>
       <td>
         <a href="https://github.com/realth000/tsdm_client/releases/latest/download/tsdm_client-arm64_v8a.apk"><img src="https://img.shields.io/badge/apk-arm64--v8a-blue.svg?logo=android&logoColor=white" alt="stable_apk_armv8"/></a><br>
         <a href="https://github.com/realth000/tsdm_client/releases/latest/download/tsdm_client-armeabi_v7a.apk"><img src="https://img.shields.io/badge/apk-armeabi--v7a-blue.svg?logo=android&logoColor=white" alt="stable_apk_armv7"/></a><br>
-        <a href="https://f-droid.org/packages/kzs.th000.tsdm_client/"><img src="https://img.shields.io/f-droid/v/kzs.th000.tsdm_client?logo=fdroid&logoColor=white" alt="F-Droid"/></a><br>
       </td>
     </tr>
     <tr>
@@ -95,6 +136,13 @@
       <td>Windows</td>
       <td>
         <a href="https://github.com/realth000/tsdm_client/releases/latest/download/tsdm_client-windows.zip"><img src="https://img.shields.io/badge/zip-x86__64-blue.svg?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0ODc1IDQ4NzUiPg0KICAgIDxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0wIDBoMjMxMXYyMzEwSDB6bTI1NjQgMGgyMzExdjIzMTBIMjU2NHpNMCAyNTY0aDIzMTF2MjMxMUgwem0yNTY0IDBoMjMxMXYyMzExSDI1NjQiLz4NCjwvc3ZnPg==" alt="stable_zip_win"/></a><br>
+      </td>
+    </tr>
+    <tr>
+      <td>F-Droid</td>
+      <td>Android</td>
+      <td>
+        <a href="https://f-droid.org/packages/kzs.th000.tsdm_client/"><img src="https://img.shields.io/f-droid/v/kzs.th000.tsdm_client?logo=fdroid&logoColor=white" alt="F-Droid"/></a><br>
       </td>
     </tr>
   </tbody>
@@ -170,10 +218,9 @@
 * [x] 积分
   * [x] 积分统计和历史记录
   * [x] 查询积分记录
-* [ ] 购买
+* [x] 购买
   * [x] 购买帖子
   * [x] 回复后可见
-  * [ ] 购买记录
 * [x] 签到
   * [x] 手动签到
   * [x] 自动签到（为所有用户）
@@ -184,13 +231,14 @@
 * [x] 主题
   * [x] 更换主题色
   * [x] 动态颜色
-* [ ] 用户信息
+* [x] 用户信息
   * [x] 查看用户信息
   * [x] 积分信息
   * [x] 签名档
-  * [ ] 修改头像
-  * [ ] 修改个人资料
+  * [x] 修改个人资料
+  * [x] 修改头像
   * [x] 切换用户组
+  * [x] 切换牌子
 * [x] 通知
   * [x] 查看提醒
   * [x] 回复提醒
@@ -209,7 +257,7 @@
   * [ ] 删除
 * [ ] 收藏
   * [ ] 收藏帖子或分区
-  * [ ] RSS订阅
+  * [ ] 编辑收藏
 * [x] 多用户
 
 ### 不实现的功能
@@ -218,7 +266,6 @@
 
 * 账号安全：更改密码、更换邮箱和设置安全问题。
 * 版主权限：帖子操作、用户操作和版区操作等。
-* 存储：保存登录密码或安全问题。
 
 ## 富文本支持
 
@@ -251,10 +298,11 @@ BBCode编辑器主要功能存放在单独的仓库[flutter_bbcode_editor](https
   * [x] 修改
   * [x] 自动填充图片大小
   * [x] 根据比例自动设置长度或宽度
-* [x] 折叠卡片 `[spoiler]` （Android尚不支持）
-* [x] 隐藏内容 `[hide]`（Android尚不支持）
+* [x] 折叠卡片 `[spoiler]`
+* [x] 隐藏内容 `[hide]`
   * [x] 根据积分隐藏 `[hide=$POINTS]`
   * [x] 需要回复 `[hide]`
+* [x] 免费区域 `[free]`
 * [x] 代码块 `[code]`
 * [x] 引用文字 `[quote]`
 * [x] 分隔线 `[hr]`
@@ -263,7 +311,7 @@ BBCode编辑器主要功能存放在单独的仓库[flutter_bbcode_editor](https
   * [x] 随机推荐好友
 * [x] 无序列表 `[list]`
 * [x] 有序列表 `[list=1]`
-* [ ] 表格 `[table]`
+* ~~表格 `[table]`~~（不实现）
 * [x] 上标 `[sup]`
 * [x] 对齐
   * [x] 居左 `[align=left]`
@@ -286,15 +334,16 @@ BBCode编辑器主要功能存放在单独的仓库[flutter_bbcode_editor](https
 * [ ] 表情 `{:$GROUP_$ID:}`
 * [x] 网页链接 `[url]`
 * [x] 外链图片 `[img]`
-* [ ] 折叠卡片 `[spoiler]`
-* [ ] 隐藏内容 `[hide]`
+* [x] 折叠卡片 `[spoiler]`
+* [x] 隐藏内容 `[hide]`
+* [x] 免费区域 `[free]`
 * [x] 代码块 `[code]`
 * [x] 引用文字 `[quote]`
 * [x] 分隔线 `[hr]`
 * [x] 提醒用户 `[@]`
-* [ ] 无序列表 `[list]`
-* [ ] 有序列表 `[list=1]`
-* [ ] 表格 `[table]`
+* [x] 无序列表 `[list]`
+* [x] 有序列表 `[list=1]`
+* ~~表格 `[table]`~~（不实现）
 * [x] 上标 `[sup]`
 * [x] 对齐
   * [x] 居左 `[align=left]`
@@ -354,7 +403,6 @@ dart run drift_dev schema generate lib/shared/providers/storage_provider/models/
 本程序不会收集或上传任何系统或设备或用户信息，访问主站时使用的凭据均只保存在设备本地。
 
 * 保存用户信息，包括用户名、UID和cookie供登录和访问时使用。
-* 不会保存邮箱、密码和安全问题。
 
 ## 许可
 

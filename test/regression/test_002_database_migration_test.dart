@@ -1,10 +1,16 @@
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:talker_flutter/talker_flutter.dart';
+import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/providers/storage_provider/models/database/database.dart';
 
 import '../data/generated_migrations/schema.dart';
 
 void main() {
+  setUpAll(() async {
+    talker = TalkerFlutter.init();
+  });
+
   test('upgrade from 1 to 2', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final connection = await verifier.startAt(1);
@@ -70,6 +76,30 @@ void main() {
     final connection = await verifier.startAt(7);
     final db = AppDatabase(connection);
     await verifier.migrateAndValidate(db, 8);
+    await db.close();
+  });
+
+  test('upgrade from 8 to 9', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final connection = await verifier.startAt(8);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 9);
+    await db.close();
+  });
+
+  test('upgrade from 9 to 10', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final connection = await verifier.startAt(9);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 10);
+    await db.close();
+  });
+
+  test('upgrade from 10 to 11', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final connection = await verifier.startAt(10);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 11);
     await db.close();
   });
 }

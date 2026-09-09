@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:tsdm_client/constants/layout.dart';
+import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/extensions/color.dart';
 import 'package:tsdm_client/features/cache/models/models.dart';
 import 'package:tsdm_client/instance.dart';
@@ -94,6 +95,9 @@ class _CachedImageState extends State<CachedImage> with LoggerMixin {
   @override
   void initState() {
     super.initState();
+    if (tmpImpellerWorkaroundUrls.contains(widget.imageUrl)) {
+      return;
+    }
     imageSub = getIt
         .get<ImageCacheProvider>()
         .response
@@ -103,12 +107,17 @@ class _CachedImageState extends State<CachedImage> with LoggerMixin {
 
   @override
   void dispose() {
-    imageSub?.cancel();
+    unawaited(imageSub?.cancel());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Show an icon instead of the original image.
+    if (tmpImpellerWorkaroundUrls.contains(widget.imageUrl)) {
+      return Icon(Icons.navigate_before_outlined, color: Theme.of(context).colorScheme.tertiary);
+    }
+
     final Widget body;
     if (widget.imageUrl.isEmpty) {
       body = FallbackPicture(
@@ -143,7 +152,7 @@ class _CachedImageState extends State<CachedImage> with LoggerMixin {
             layoutBuilder: (currentChild, previousChildren) {
               return Stack(
                 alignment: Alignment.center,
-                children: <Widget>[...previousChildren, if (currentChild != null) currentChild],
+                children: <Widget>[...previousChildren, ?currentChild],
               );
             },
             // Return the same placeholder until built finished to avoid size

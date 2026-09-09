@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
+import 'package:tsdm_client/widgets/selectable_list_tile.dart';
 
 /// Dialog to let user choose app locale.
 class LanguageDialog extends StatelessWidget {
@@ -11,47 +13,36 @@ class LanguageDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      scrollable: true,
+    return CustomAlertDialog.sync(
       title: Text(t.settingsPage.appearanceSection.languages.selectLanguage),
-      content: SingleChildScrollView(
-        child: Column(
-          children: [
-            RadioListTile(
-              title: Text(t.settingsPage.appearanceSection.languages.followSystem),
-              onChanged: (value) async {
-                if (value != null) {
-                  Navigator.of(context).pop((null, true));
-                }
-              },
-              value: '',
-              groupValue: currentLocale,
+      content: Column(
+        children: [
+          SelectableListTile(
+            title: Text(t.settingsPage.appearanceSection.languages.followSystem),
+            selected: currentLocale == '',
+            onTap: () async => Navigator.of(context).pop((null, true)),
+          ),
+          ...AppLocale.values.map(
+            (e) => SelectableListTile(
+              // TODO: Check if is caused by lazy loading.
+              // Traditional Chinese language tag is displayed as "English".
+              title: // Text(e.translations.locale),
+              Text(switch (e.languageTag) {
+                'en' => 'English',
+                'zh-CN' => '简体中文',
+                'zh-TW' => '繁體中文',
+                final v => throw UnimplementedError(
+                  'unsupported '
+                  'language tag $v',
+                ),
+              }),
+              selected: currentLocale == e.languageTag,
+              onTap: () async => Navigator.of(context).pop((e, false)),
             ),
-            ...AppLocale.values.map(
-              (e) => RadioListTile(
-                // TODO: Check if is caused by lazy loading.
-                // Traditional Chinese language tag is displayed as "English".
-                title: // Text(e.translations.locale),
-                    Text(switch (e.languageTag) {
-                  'en' => 'English',
-                  'zh-CN' => '简体中文',
-                  'zh-TW' => '繁體中文',
-                  final v =>
-                    throw UnimplementedError(
-                      'unsupported '
-                      'language tag $v',
-                    ),
-                }),
-                value: e.languageTag,
-                groupValue: currentLocale,
-                onChanged: (value) async {
-                  Navigator.of(context).pop((e, false));
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

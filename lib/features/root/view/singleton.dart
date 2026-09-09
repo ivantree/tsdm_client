@@ -14,12 +14,14 @@ import 'package:tsdm_client/features/notification/bloc/notification_bloc.dart';
 import 'package:tsdm_client/features/points/stream.dart';
 import 'package:tsdm_client/features/root/bloc/points_changes_cubit.dart';
 import 'package:tsdm_client/features/root/bloc/root_location_cubit.dart';
+import 'package:tsdm_client/features/root/view/root_page.dart';
 import 'package:tsdm_client/features/update/cubit/update_cubit.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/utils/git_info.dart';
 import 'package:tsdm_client/utils/logger.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
+import 'package:tsdm_client/widgets/custom_alert_dialog.dart';
 
 /// The app wide singleton stands on top of all other pages to act on different events in app.
 class RootSingleton extends StatefulWidget {
@@ -65,6 +67,7 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
     final fh = segments.elementAt(5).parseToInt();
     final jl = segments.elementAt(6).parseToInt();
     final specialAttr = segments.elementAt(7).parseToInt();
+    final specialAttr2 = segments.elementAt(8).parseToInt();
 
     if (ww == null || tsb == null || xc == null || tr == null || fh == null || jl == null || specialAttr == null) {
       info(
@@ -75,7 +78,16 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
     }
 
     context.read<PointsChangesCubit>().recordsChanges(
-      PointsChangesValue(ww: ww, tsb: tsb, xc: xc, tr: tr, fh: fh, jl: jl, specialAttr: specialAttr),
+      PointsChangesValue(
+        ww: ww,
+        tsb: tsb,
+        xc: xc,
+        tr: tr,
+        fh: fh,
+        jl: jl,
+        specialAttr: specialAttr,
+        specialAttr2: specialAttr2 ?? 0,
+      ),
     );
   }
 
@@ -87,7 +99,7 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
 
   @override
   void dispose() {
-    _pointsChangesSub.cancel();
+    unawaited(_pointsChangesSub.cancel());
     super.dispose();
   }
 
@@ -130,7 +142,7 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
           },
         ),
         BlocListener<UpdateCubit, UpdateCubitState>(
-          listenWhen: (prev, curr) => curr.loading == false && prev.loading == true,
+          listenWhen: (prev, curr) => !curr.loading && prev.loading,
           listener: (context, state) async {
             final info = state.latestVersionInfo;
             final tr = context.t.updatePage;
@@ -154,32 +166,35 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
                 context: context,
                 builder: (context) {
                   final size = MediaQuery.sizeOf(context);
-                  return AlertDialog(
-                    title: Text(tr.availableDialog.title),
-                    content: SizedBox(
-                      width: math.min(size.width * 0.8, 800),
-                      height: math.min(size.height * 0.6, 600),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            tr.availableDialog.version(version: info.version),
-                            style: Theme.of(
-                              context,
-                            ).textTheme.labelMedium?.copyWith(color: Theme.of(context).colorScheme.primary),
-                          ),
-                          sizedBoxW8H8,
-                          Expanded(child: Markdown(data: info.changelog)),
-                        ],
+                  return RootPage(
+                    DialogPaths.updateNotice,
+                    CustomAlertDialog.sync(
+                      title: Text(tr.availableDialog.title),
+                      content: SizedBox(
+                        width: math.min(size.width * 0.8, 800),
+                        height: math.min(size.height * 0.6, 600),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tr.availableDialog.version(version: info.version),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.labelMedium?.copyWith(color: Theme.of(context).colorScheme.primary),
+                            ),
+                            sizedBoxW8H8,
+                            Expanded(child: Markdown(data: info.changelog)),
+                          ],
+                        ),
                       ),
+                      actions: [
+                        TextButton(child: Text(context.t.general.cancel), onPressed: () => context.pop(false)),
+                        TextButton(
+                          child: Text(context.t.settingsPage.othersSection.update),
+                          onPressed: () => context.pop(true),
+                        ),
+                      ],
                     ),
-                    actions: [
-                      TextButton(child: Text(context.t.general.cancel), onPressed: () => context.pop(false)),
-                      TextButton(
-                        child: Text(context.t.settingsPage.othersSection.update),
-                        onPressed: () => context.pop(true),
-                      ),
-                    ],
                   );
                 },
               );
@@ -216,6 +231,9 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
             if (state.specialAttr != 0) {
               kinds.add(tr.points.specialAttr(value: state.specialAttr.withSign()));
             }
+            if (state.specialAttr2 != 0) {
+              kinds.add(tr.points.specialAttr2(value: state.specialAttr2.withSign()));
+            }
             showToast(
               kinds.join(tr.sep),
               context: context,
@@ -233,10 +251,9 @@ class _RootSingletonState extends State<RootSingleton> with LoggerMixin {
 }
 
 extension _SignedInteger on int {
-  String withSign() =>
-      this < 0
-          ? '$this'
-          : this > 0
-          ? '+$this'
-          : '0';
+  String withSign() => this < 0
+      ? '$this'
+      : this > 0
+      ? '+$this'
+      : '0';
 }

@@ -6,6 +6,7 @@ import 'package:dio_brotli_transformer/dio_brotli_transformer.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:tsdm_client/constants/constants.dart';
+import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
 import 'package:tsdm_client/extensions/map.dart';
 import 'package:tsdm_client/features/points/stream.dart';
@@ -33,12 +34,13 @@ AppException mapException(Object error, StackTrace st) {
 extension _WithFormExt<T> on Dio {
   AsyncEither<Response<T>> postWithForm(String path, {Object? data, Map<String, dynamic>? queryParameters}) =>
       AsyncEither.tryCatch(
-        () async => post(
-          path,
-          data: data,
-          queryParameters: queryParameters,
-          options: Options(headers: {'Content-Type': 'application/x-www-form-urlencoded'}),
-        ),
+            () async =>
+            post(
+              path,
+              data: data,
+              queryParameters: queryParameters,
+              options: Options(headers: {HttpHeaders.contentTypeHeader: 'application/x-www-form-urlencoded'}),
+            ),
         mapException,
       );
 }
@@ -71,6 +73,7 @@ final class NetClientProvider with LoggerMixin {
 
       d.interceptors.add(_ErrorHandler());
       d.interceptors.add(_PointsChangesChecker());
+      d.interceptors.add(_GzipEncodingChecker());
       // decode br content-type.
       d.transformer = DioBrotliTransformer();
     }
@@ -135,30 +138,31 @@ final class NetClientProvider with LoggerMixin {
       }, mapException);
 
   /// Get a image from the given [uri].
-  AsyncEither<Response<dynamic>> getImageFromUri(Uri uri) => AsyncEither.tryCatch(() async {
-    final resp = await _dio.getUri<dynamic>(
-      uri,
-      options: Options(
-        responseType: ResponseType.bytes,
-        headers: {
-          HttpHeaders.acceptHeader: 'image/avif,image/webp,*/*;q=0.8',
-          HttpHeaders.acceptEncodingHeader: 'gzip, deflate, br',
-        },
-      ),
-    );
+  AsyncEither<Response<dynamic>> getImageFromUri(Uri uri) =>
+      AsyncEither.tryCatch(() async {
+        final resp = await _dio.getUri<dynamic>(
+          uri,
+          options: Options(
+            responseType: ResponseType.bytes,
+            headers: {
+              HttpHeaders.acceptHeader: 'image/avif,image/webp,*/*;q=0.8',
+              HttpHeaders.acceptEncodingHeader: 'gzip, deflate, br',
+            },
+          ),
+        );
 
-    if (resp.statusCode != HttpStatus.ok) {
-      throw HttpRequestFailedException(resp.statusCode);
-    }
-    return resp;
-  }, mapException);
+        if (resp.statusCode != HttpStatus.ok) {
+          throw HttpRequestFailedException(resp.statusCode);
+        }
+        return resp;
+      }, mapException);
 
   /// Post [data] to [path] with [queryParameters].
   ///
   /// When post a form data, use [postForm] instead.
   AsyncEither<Response<dynamic>> post(String path, {Object? data, Map<String, dynamic>? queryParameters}) =>
       AsyncEither.tryCatch(
-        () async => _dio.post<dynamic>(path, data: data, queryParameters: queryParameters),
+            () async => _dio.post<dynamic>(path, data: data, queryParameters: queryParameters),
         mapException,
       );
 
@@ -171,54 +175,57 @@ final class NetClientProvider with LoggerMixin {
   /// Post a form [data] to url [path] in `Content-Type` multipart/form-data.
   ///
   /// Automatically set `Content-Type` to `multipart/form-data`.
-  AsyncEither<Response<dynamic>> postMultipartForm(
-    String path, {
-    required Map<String, dynamic> data,
+  AsyncEither<Response<dynamic>> postMultipartForm(String path, {
+    required Map<String, String> data,
     Map<String, String>? header,
-  }) => AsyncEither.tryCatch(
-    () async => _dio.post<dynamic>(
-      path,
-      options: Options(
-        headers: <String, String>{
-          HttpHeaders.contentTypeHeader: Headers.multipartFormDataContentType,
-        }.copyWith(header ?? {}),
-        validateStatus: (code) {
-          if (code == 301 || code == 200) {
-            return true;
-          }
-          return false;
-        },
-      ),
-      data: FormData.fromMap(data),
-    ),
-    mapException,
-  );
+  }) =>
+      AsyncEither.tryCatch(
+            () async =>
+            _dio.post<dynamic>(
+              path,
+              options: Options(
+                headers: <String, String>{
+                  HttpHeaders.contentTypeHeader: Headers.multipartFormDataContentType,
+                }.copyWith(header ?? {}),
+                validateStatus: (code) {
+                  if (code == 301 || code == 200) {
+                    return true;
+                  }
+                  return false;
+                },
+              ),
+              // Use plain map for kotlin native http client.
+              data: isAndroid ? data : FormData.fromMap(data),
+            ),
+        mapException,
+      );
 
   /// Download the file from url [path] and save to [savePath].
-  AsyncVoidEither download(
-    String path,
-    dynamic savePath, {
-    ProgressCallback? onReceiveProgress,
-    Map<String, dynamic>? queryParameters,
-    CancelToken? cancelToken,
-    bool deleteOnError = true,
-    String lengthHeader = Headers.contentLengthHeader,
-    Object? data,
-    Options? options,
-  }) => AsyncVoidEither.tryCatch(
-    () async => _dio.download(
-      path,
-      savePath,
-      onReceiveProgress: onReceiveProgress,
-      queryParameters: queryParameters,
-      cancelToken: cancelToken,
-      deleteOnError: deleteOnError,
-      lengthHeader: lengthHeader,
-      data: data,
-      options: options,
-    ),
-    mapException,
-  );
+  AsyncVoidEither download(String path,
+      dynamic savePath, {
+        ProgressCallback? onReceiveProgress,
+        Map<String, dynamic>? queryParameters,
+        CancelToken? cancelToken,
+        bool deleteOnError = true,
+        String lengthHeader = Headers.contentLengthHeader,
+        Object? data,
+        Options? options,
+      }) =>
+      AsyncVoidEither.tryCatch(
+            () async =>
+            _dio.download(
+              path,
+              savePath,
+              onReceiveProgress: onReceiveProgress,
+              queryParameters: queryParameters,
+              cancelToken: cancelToken,
+              deleteOnError: deleteOnError,
+              lengthHeader: lengthHeader,
+              data: data,
+              options: options,
+            ),
+        mapException,
+      );
 }
 
 /// Handle exceptions during web request.
@@ -231,7 +238,7 @@ class _ErrorHandler extends Interceptor with LoggerMixin {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    error('${err.requestOptions} ${err.type}: ${err.error},${err.message}');
+    error('${err.requestOptions.uri} ${err.type}: error: ${err.error}, status code: ${err.response?.statusCode}');
     getIt.get<NetErrorSaver>().save(err.message);
 
     if (err.type == DioExceptionType.badResponse) {
@@ -255,7 +262,12 @@ class _ErrorHandler extends Interceptor with LoggerMixin {
 class _ForceDesktopLayoutInterceptor extends Interceptor with LoggerMixin {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    options.queryParameters['mobile'] = 'no';
+    // Only append query parameter if request is target forum server host.
+    final host = options.uri.host;
+    if (host == baseHost || host == baseHostAlt) {
+      options.queryParameters['mobile'] = 'no';
+    }
+
     handler.next(options);
   }
 }
@@ -281,8 +293,10 @@ final class _PointsChangesChecker extends Interceptor {
 
   /// Filter credit notice cookie values from cookie strings.
   Option<List<String>> _filterCreditNotice(List<String> cookie) {
-    final filtered =
-        cookie.filter((v) => v.contains(_creditNotice)).map(_creditNoticeRe.firstMatch).whereType<RegExpMatch>();
+    final filtered = cookie
+        .filter((v) => v.contains(_creditNotice))
+        .map(_creditNoticeRe.firstMatch)
+        .whereType<RegExpMatch>();
     if (filtered.isEmpty) {
       return const None();
     }
@@ -295,9 +309,30 @@ final class _PointsChangesChecker extends Interceptor {
     response.headers.map
         .lookup('set-cookie')
         .filterMap(_filterCreditNotice)
-        // All notice changes cookie value.
+    // All notice changes cookie value.
         .map((x) => x.forEach(pointsChangesStream.add));
 
     handler.next(response);
+  }
+}
+
+/// This interceptor checks if gzip encoding is available in request.
+///
+/// Ref:
+/// https://github.com/flutter/flutter/issues/32558#issuecomment-886022246
+///
+/// Remove "gzip" encoding in "Accept-Encoding" can fix the issue above.
+/// Those requests intend to have a 301 status code need to remove "gzip" encoding in request.
+/// But the server may still return gzip content data.
+final class _GzipEncodingChecker extends Interceptor with LoggerMixin {
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    // Likely to have redirect on post methods.
+    if (options.method != 'GET' || options.uri.queryParameters['goto'] == 'findpost') {
+      info('removing gzip encoding in request');
+      options.headers[HttpHeaders.acceptEncodingHeader] = 'deflate, br';
+    }
+
+    super.onRequest(options, handler);
   }
 }

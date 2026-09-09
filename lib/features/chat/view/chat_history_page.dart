@@ -11,6 +11,7 @@ import 'package:tsdm_client/features/chat/widgets/chat_message_card.dart';
 import 'package:tsdm_client/i18n/strings.g.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/utils/show_toast.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/reply_bar/bloc/reply_bloc.dart';
 import 'package:tsdm_client/widgets/reply_bar/models/reply_types.dart';
 import 'package:tsdm_client/widgets/reply_bar/reply_bar.dart';
@@ -110,9 +111,8 @@ final class _ChatHistoryPageState extends State<ChatHistoryPage> {
         RepositoryProvider(create: (context) => const ReplyRepository()),
         BlocProvider(create: (context) => ReplyBloc(replyRepository: context.repo())),
         BlocProvider(
-          create:
-              (context) =>
-                  ChatHistoryBloc(context.repo())..add(ChatHistoryLoadHistoryRequested(uid: widget.uid, page: null)),
+          create: (context) =>
+              ChatHistoryBloc(context.repo())..add(ChatHistoryLoadHistoryRequested(uid: widget.uid, page: null)),
         ),
       ],
       child: MultiBlocListener(
@@ -134,7 +134,14 @@ final class _ChatHistoryPageState extends State<ChatHistoryPage> {
                   context.pop();
                 }
               } else if (state.status == ReplyStatus.failure && state.failedReason != null) {
-                showSnackBar(context: context, message: tr.failed(message: state.failedReason!));
+                // Close the reply bar when sent failed.
+                if (_replyBarController.showingEditor) {
+                  context.pop();
+                }
+                showSnackBar(
+                  context: context,
+                  message: tr.failed(message: state.failedReason!),
+                );
               }
             },
           ),
@@ -142,8 +149,7 @@ final class _ChatHistoryPageState extends State<ChatHistoryPage> {
         child: BlocBuilder<ChatHistoryBloc, ChatHistoryState>(
           builder: (context, state) {
             final body = switch (state.status) {
-              ChatHistoryStatus.initial ||
-              ChatHistoryStatus.loading => const Center(child: CircularProgressIndicator()),
+              ChatHistoryStatus.initial || ChatHistoryStatus.loading => const CenteredCircularIndicator(),
               ChatHistoryStatus.success || ChatHistoryStatus.loadingMore => _buildContent(context, state),
               ChatHistoryStatus.failure => buildRetryButton(
                 context,

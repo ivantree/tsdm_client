@@ -8,9 +8,13 @@ import 'package:dio/io.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/models/models.dart';
+import 'package:tsdm_client/shared/models/thread_floor_interaction_mode.dart';
+import 'package:tsdm_client/shared/providers/net_client_provider/net_client_provider_android.dart';
+import 'package:tsdm_client/shared/providers/proxy_provider/proxy_provider.dart';
 import 'package:tsdm_client/shared/providers/storage_provider/models/database/database.dart';
 import 'package:tsdm_client/shared/providers/storage_provider/storage_provider.dart';
 import 'package:tsdm_client/utils/logger.dart';
+import 'package:tsdm_client/utils/platform.dart';
 
 typedef _SK<T> = SettingsKeys<T>;
 
@@ -26,32 +30,32 @@ extension _ExtractExt on List<SettingsEntity> {
     if (v == null) {
       return settings.defaultValue;
     }
-    return (switch (T) {
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              int => v.intValue,
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              double => v.doubleValue,
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              String => v.stringValue,
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              bool => v.boolValue,
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              DateTime => v.dateTimeValue,
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              Offset => v.offsetValue,
-              // ref: https://github.com/dart-lang/sdk/issues/59334
-              // ignore: type_literal_in_constant_pattern
-              Size => v.sizeValue,
-              _ => null,
-            } ??
-            settings.defaultValue)
-        as T;
+    final Object? value;
+    if (T == int) {
+      value = v.intValue;
+    } else if (T == double) {
+      value = v.doubleValue;
+    } else if (T == String) {
+      value = v.stringValue;
+    } else if (T == bool) {
+      value = v.boolValue;
+    } else if (T == DateTime) {
+      value = v.dateTimeValue;
+    } else if (T == Offset) {
+      value = v.offsetValue;
+    } else if (T == Size) {
+      value = v.sizeValue;
+    } else if (T == List<String>) {
+      value = v.stringListValue;
+    } else if (T == List<int>) {
+      value = v.intListValue;
+    } else if (T == ThreadFloorInteractionMode) {
+      value = ThreadFloorInteractionMode.values[v.intValue ?? 0];
+    } else {
+      talker.error('failed to extract settings: unsupported settings type $T');
+      value = null;
+    }
+    return (value ?? settings.defaultValue) as T;
   }
 }
 
@@ -113,7 +117,6 @@ final class SettingsRepository with LoggerMixin {
       accentColor: s.extract(_SK.accentColor),
       accentColorFollowSystem: s.extract(_SK.accentColorFollowSystem),
       showUnreadInfoHint: s.extract(_SK.showUnreadInfoHint),
-      doublePressExit: s.extract(_SK.doublePressExit),
       threadReverseOrder: s.extract(_SK.threadReverseOrder),
       threadCardInfoRowAlignCenter: s.extract(_SK.threadCardInfoRowAlignCenter),
       threadCardShowLastReplyAuthor: s.extract(_SK.threadCardShowLastReplyAuthor),
@@ -131,12 +134,19 @@ final class SettingsRepository with LoggerMixin {
       fontFamily: s.extract(_SK.fontFamily),
       enableEditorBBCodeParser: s.extract(_SK.enableEditorBBCodeParser),
       enableUpdateCheckOnStartup: s.extract(_SK.enableUpdateCheckOnStartup),
+      editorRecentUsedCustomColors: s.extract(_SK.editorRecentUsedCustomColors),
+      useDetectedProxyWhenStartup: s.extract(_SK.useDetectedProxyWhenStartup),
+      enableAutoClearImageCache: s.extract(_SK.enableAutoClearImageCache),
+      autoClearImageCacheDuration: s.extract(_SK.autoClearImageCacheDuration),
+      collapseAppBarWhenScroll: s.extract(_SK.collapseAppBarWhenScroll),
+      threadFloorInteractionMode: s.extract(_SK.threadFloorInteractionMode),
+      textScaleFactor: s.extract(_SK.textScaleFactor),
     );
   }
 
   /// Dispose settings repository instance.
-  void dispose() {
-    _controller.close();
+  Future<void> dispose() async {
+    await _controller.close();
   }
 
   /// Get settings [key] with value in type [T}.
@@ -148,33 +158,32 @@ final class SettingsRepository with LoggerMixin {
     );
 
     final name = key.name;
-    final v = await switch (T) {
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      int => _storage.getInt(name),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      double => _storage.getDouble(name),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      String => _storage.getString(name),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      bool => _storage.getBool(name),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      DateTime => _storage.getDateTime(name),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      Offset => _storage.getOffset(name),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      Size => _storage.getSize(name),
-      _ => () {
-        error('failed to getValue for key $key: unsupported type $T');
-        return null;
-      }(),
-    };
+    final Object? v;
+    if (T == int) {
+      v = await _storage.getInt(name);
+    } else if (T == double) {
+      v = await _storage.getDouble(name);
+    } else if (T == String) {
+      v = await _storage.getString(name);
+    } else if (T == bool) {
+      v = await _storage.getBool(name);
+    } else if (T == DateTime) {
+      v = await _storage.getDateTime(name);
+    } else if (T == Offset) {
+      v = await _storage.getOffset(name);
+    } else if (T == Size) {
+      v = await _storage.getSize(name);
+    } else if (T == List<String>) {
+      v = await _storage.getStringList(name);
+    } else if (T == List<int>) {
+      v = await _storage.getIntList(name);
+    } else if (T == ThreadFloorInteractionMode) {
+      v = ThreadFloorInteractionMode.values[await _storage.getInt(name) ?? 0];
+    } else {
+      error('failed to getValue for key $key: unsupported type $T');
+      v = null;
+    }
+
     return (v ?? key.defaultValue) as T;
   }
 
@@ -194,35 +203,32 @@ final class SettingsRepository with LoggerMixin {
     );
 
     final name = key.name;
-    final _ = await switch (T) {
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      int => _storage.saveInt(name, value as int),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      double => _storage.saveDouble(name, value as double),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      String => _storage.saveString(name, value as String),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      bool => _storage.saveBool(name, value: value as bool),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      DateTime => _storage.saveDateTime(name, value as DateTime),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      Offset => _storage.saveOffset(name, value as Offset),
-      // ref: https://github.com/dart-lang/sdk/issues/59334
-      // ignore: type_literal_in_constant_pattern
-      Size => _storage.saveSize(name, value as Size),
-      final t => () {
-        error(
-          'failed to save settings for key $key:'
-          ' unsupported type in storage: $t',
-        );
-      }(),
-    };
+    if (T == int) {
+      await _storage.saveInt(name, value as int);
+    } else if (T == double) {
+      await _storage.saveDouble(name, value as double);
+    } else if (T == String) {
+      await _storage.saveString(name, value as String);
+    } else if (T == bool) {
+      await _storage.saveBool(name, value: value as bool);
+    } else if (T == DateTime) {
+      await _storage.saveDateTime(name, value as DateTime);
+    } else if (T == Offset) {
+      await _storage.saveOffset(name, value as Offset);
+    } else if (T == Size) {
+      await _storage.saveSize(name, value as Size);
+    } else if (T == List<String>) {
+      await _storage.saveStringList(name, value as List<String>);
+    } else if (T == List<int>) {
+      await _storage.saveIntList(name, value as List<int>);
+    } else if (T == ThreadFloorInteractionMode) {
+      await _storage.saveInt(name, (value as ThreadFloorInteractionMode).index);
+    } else {
+      error(
+        'failed to save settings for key $key:'
+        ' unsupported type in storage: $T',
+      );
+    }
 
     _state = _state.copyWithKey(key, value);
     _controller.add(_state);
@@ -230,23 +236,38 @@ final class SettingsRepository with LoggerMixin {
 
   /// Build a default [Dio] instance from current settings.
   Dio buildDefaultDio() {
-    return Dio()
-      ..httpClientAdapter = IOHttpClientAdapter(
+    final HttpClientAdapter httpClientAdapter;
+
+    if (isAndroid) {
+      httpClientAdapter = KotlinHttpClientAdapter(KotlinHttpClient());
+    } else {
+      httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           // Don't trust any certificate just because their root cert is
           // trusted.
           final settings = getIt.get<SettingsRepository>().currentSettings;
           final useProxy = settings.netClientUseProxy;
-          final proxy = settings.netClientProxy;
 
           final client = HttpClient();
 
-          if (useProxy && proxy.isNotEmpty) {
-            client.findProxy = (_) => 'PROXY $proxy';
+          if (useProxy) {
+            final useDetected = settings.useDetectedProxyWhenStartup;
+            final proxy = switch (useDetected) {
+              true => getIt.get<ProxyProvider>().proxy,
+              false => settings.netClientProxy,
+            };
+
+            if ((useDetected && getIt.get<ProxyProvider>().proxyEnabled && proxy.isNotEmpty) || proxy.isNotEmpty) {
+              client.findProxy = (_) => 'PROXY $proxy';
+            }
           }
           return client;
         },
-      )
+      );
+    }
+
+    return Dio()
+      ..httpClientAdapter = httpClientAdapter
       ..options = BaseOptions(
         headers: <String, String>{
           HttpHeaders.acceptHeader: _state.netClientAccept,

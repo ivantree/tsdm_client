@@ -4,12 +4,13 @@ part of 'dao.dart';
 @DriftAccessor(tables: [ThreadVisitHistory])
 final class ThreadVisitHistoryDao extends DatabaseAccessor<AppDatabase> with _$ThreadVisitHistoryDaoMixin {
   /// Constructor.
-  ThreadVisitHistoryDao(super.db);
+  ThreadVisitHistoryDao(super.attachedDatabase);
 
   /// Get all history, all users.
   Future<List<ThreadVisitHistoryEntity>> selectAll() async {
-    return (select(threadVisitHistory)
-      ..orderBy([(e) => OrderingTerm(expression: e.visitTime, mode: OrderingMode.desc)])).get();
+    return (select(
+      threadVisitHistory,
+    )..orderBy([(e) => OrderingTerm(expression: e.visitTime, mode: OrderingMode.desc)])).get();
   }
 
   /// Get all history with the user specified with [uid].

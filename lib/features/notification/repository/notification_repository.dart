@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:tsdm_client/constants/url.dart';
 import 'package:tsdm_client/exceptions/exceptions.dart';
+import 'package:tsdm_client/extensions/uri.dart';
 import 'package:tsdm_client/features/notification/models/models.dart';
 import 'package:tsdm_client/instance.dart';
 import 'package:tsdm_client/shared/providers/net_client_provider/net_client_provider.dart';
@@ -13,6 +14,8 @@ import 'package:universal_html/parsing.dart';
 
 /// Repository of notification.
 final class NotificationRepository with LoggerMixin {
+  static const _emptyPersonalMessageText = '当前没有相应的短消息';
+
   /// Provide a stream of [NotificationInfoState] those are fetched from server.
   ///
   /// Carries fetch result and fetched info if any.
@@ -43,7 +46,10 @@ final class NotificationRepository with LoggerMixin {
     () async => switch (await getIt.get<NetClientProvider>().get(url).run()) {
       Left(:final value) => left(value),
       Right(:final value) when value.statusCode != HttpStatus.ok => left(HttpRequestFailedException(value.statusCode)),
-      Right(:final value) => right((parseHtmlDocument(value.data as String), value.realUri.queryParameters['page'])),
+      Right(:final value) => right((
+        parseHtmlDocument(value.data as String),
+        value.realUri.tryGetQueryParameters()?['page'],
+      )),
     },
   );
 
@@ -67,34 +73,70 @@ final class NotificationRepository with LoggerMixin {
       .get<NetClientProvider>()
       .get(broadcastMessageUrl)
       .mapHttp(
-        (v) =>
-            parseHtmlDocument(v.data as String)
-                .querySelectorAll('form#deletepmform > div > dl')
-                .map(BroadcastMessage.fromDl)
-                .whereType<BroadcastMessage>()
-                .toList(),
+        (v) => parseHtmlDocument(v.data as String)
+            .querySelectorAll('form#deletepmform > div > dl')
+            .map(BroadcastMessage.fromDl)
+            .whereType<BroadcastMessage>()
+            .toList(),
       );
 
   /// Fetch all kinds of notification using API v2.
   ///
   /// [timestamp] is the last time call this api (in seconds).
   /// [uid] is the user id of whom to do the fetch action.
-  AsyncVoidEither fetchNotificationV2({required int uid, int? timestamp}) {
+  AsyncVoidEither fetchNotificationV2({required int uid, int? timestamp}) => AsyncVoidEither(() async {
     _controller.add(const NotificationInfoStateLoading());
-    return getIt
-        .get<NetClientProvider>()
-        .get(_buildNotificationV2Url(timestamp: timestamp))
-        .mapHttp(
-          (v) => _controller.add(NotificationInfoStateSuccess(uid, NotificationV2Mapper.fromJson(v.data as String))),
-        )
-        .mapLeft((e) {
-          _controller.add(const NotificationInfoStateFailure());
-          return e;
-        });
-  }
+    final netClient = getIt.get<NetClientProvider>();
+    final apiResult = await netClient.get(_buildNotificationV2Url(timestamp: timestamp)).run();
+    if (apiResult case Right(:final value) when value.statusCode == HttpStatus.ok) {
+      try {
+        final info = switch (value.data) {
+          final String data => NotificationV2Mapper.fromJson(data),
+          final Map<String, dynamic> data => NotificationV2Mapper.fromMap(data),
+          _ => throw const FormatException('unexpected notification response'),
+        };
+        _controller.add(NotificationInfoStateSuccess(uid, info));
+        return rightVoid();
+      } on FormatException {
+        warning('notification plugin returned a non-JSON response; falling back to the standard message page');
+      }
+    }
+
+    final pageResult = await netClient.get(personalMessageUrl).run();
+    final AppException? error;
+    switch (pageResult) {
+      case Left(:final value):
+        error = value;
+      case Right(:final value) when value.statusCode != HttpStatus.ok:
+        error = HttpRequestFailedException(value.statusCode);
+      case Right(:final value):
+        final document = parseHtmlDocument(value.data as String);
+        final isEmpty = document
+            .querySelectorAll('div.emp')
+            .any((node) => node.innerText.trim() == _emptyPersonalMessageText);
+        if (isEmpty) {
+          _controller.add(
+            NotificationInfoStateSuccess(
+              uid,
+              const NotificationV2(
+                status: 0,
+                noticeList: [],
+                personalMessageList: [],
+                broadcastMessageList: [],
+              ),
+            ),
+          );
+          return rightVoid();
+        }
+        error = HttpRequestFailedException(value.statusCode);
+    }
+
+    _controller.add(const NotificationInfoStateFailure());
+    return left(error);
+  });
 
   /// Dispose the repo.
-  void dispose() {
-    _controller.close();
+  Future<void> dispose() async {
+    await _controller.close();
   }
 }

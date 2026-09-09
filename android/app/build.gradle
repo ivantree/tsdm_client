@@ -33,7 +33,7 @@ android {
     namespace = "kzs.th000.tsdm_client"
     compileSdkVersion 36
     // ndkVersion flutter.ndkVersion
-    ndkVersion "28.0.13004108" // r28, keep using the same version in workflows.
+    ndkVersion "29.0.14206865" // r29, keep using the same version in workflows.
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -60,8 +60,7 @@ android {
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
 
         // webview_flutter_android acquires minSdkVersion >= 19, restore this when no longer use it.
-        // minSdkVersion flutter.minSdkVersion
-        minSdkVersion 23
+        minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -133,17 +132,24 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
+    // For splash screen Theme.SplashScreen
+    implementation "androidx.core:core-splashscreen:1.2.0"
+
     // Required by flutter_local_notifications
-    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+
+    // For Android native http client.
+    implementation platform("com.squareup.okhttp3:okhttp-bom:5.3.2")
+    implementation "com.squareup.okhttp3:okhttp"
+
 }
 
 // Required by FDroid version policy.
 ext.abiCodes = ["x86_64": 1, "armeabi-v7a": 2, "arm64-v8a": 3]
-import com.android.build.OutputFile
 
 android.applicationVariants.all { variant ->
     variant.outputs.each { output ->
-        def abiVersionCode = project.ext.abiCodes.get(output.getFilter(OutputFile.ABI))
+        def abiVersionCode = project.ext.abiCodes.get(output.getFilter(com.android.build.OutputFile.ABI))
         if (abiVersionCode != null) {
             output.versionCodeOverride = variant.versionCode * 10 + abiVersionCode
         }

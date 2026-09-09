@@ -19,6 +19,7 @@ import 'package:tsdm_client/routes/screen_paths.dart';
 import 'package:tsdm_client/shared/repositories/forum_home_repository/forum_home_repository.dart';
 import 'package:tsdm_client/utils/retry_button.dart';
 import 'package:tsdm_client/widgets/heroes.dart';
+import 'package:tsdm_client/widgets/indicator.dart';
 import 'package:tsdm_client/widgets/notice_button.dart';
 
 /// Show [FloatingActionButton] when offset is larger than this value.
@@ -100,12 +101,11 @@ class _HomepagePageState extends State<HomepagePage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create:
-          (context) => HomepageBloc(
-            authenticationRepository: RepositoryProvider.of<AuthenticationRepository>(context),
-            forumHomeRepository: RepositoryProvider.of<ForumHomeRepository>(context),
-            profileRepository: RepositoryProvider.of<ProfileRepository>(context),
-          )..add(HomepageLoadRequested()),
+      create: (context) => HomepageBloc(
+        authenticationRepository: RepositoryProvider.of<AuthenticationRepository>(context),
+        forumHomeRepository: RepositoryProvider.of<ForumHomeRepository>(context),
+        profileRepository: RepositoryProvider.of<ProfileRepository>(context),
+      )..add(HomepageLoadRequested()),
       child: MultiBlocListener(
         listeners: [
           BlocListener<HomeCubit, HomeState>(
@@ -118,7 +118,10 @@ class _HomepagePageState extends State<HomepagePage> {
             },
           ),
           BlocListener<HomepageBloc, HomepageState>(
-            listenWhen: (prev, curr) => prev.status == HomepageStatus.loading && curr.status == HomepageStatus.success,
+            listenWhen: (prev, curr) =>
+                prev.status == HomepageStatus.loading &&
+                curr.status == HomepageStatus.success &&
+                curr.loggedUserInfo != null,
             listener: (context, _) {
               // From loading state to success state, refresh notice.
               context.read<NotificationBloc>().add(NotificationUpdateAllRequested());
@@ -136,7 +139,7 @@ class _HomepagePageState extends State<HomepagePage> {
                 onRefresh: () {
                   context.read<HomepageBloc>().add(HomepageRefreshRequested());
                 },
-                child: const Center(child: CircularProgressIndicator()),
+                child: const CenteredCircularIndicator(),
               ),
               HomepageStatus.needLogin => NeedLoginPage(
                 backUri: GoRouterState.of(context).uri,
@@ -156,21 +159,20 @@ class _HomepagePageState extends State<HomepagePage> {
                 onRefresh: () {
                   context.read<HomepageBloc>().add(HomepageRefreshRequested());
                 },
-                childBuilder:
-                    (context, physics) => ListView(
-                      physics: physics,
-                      controller: _scrollController,
-                      padding: edgeInsetsL12T4R12.add(context.safePadding()),
-                      children: [
-                        WelcomeSection(
-                          forumStatus: state.forumStatus,
-                          loggedUserInfo: state.loggedUserInfo,
-                          swiperUrlList: state.swiperUrlList,
-                        ),
-                        sizedBoxW12H12,
-                        PinSection(state.pinnedThreadGroupList),
-                      ],
+                childBuilder: (context, physics) => ListView(
+                  physics: physics,
+                  controller: _scrollController,
+                  padding: edgeInsetsL12T4R12.add(context.safePadding()),
+                  children: [
+                    WelcomeSection(
+                      forumStatus: state.forumStatus,
+                      loggedUserInfo: state.loggedUserInfo,
+                      swiperUrlList: state.swiperUrlList,
                     ),
+                    sizedBoxW12H12,
+                    PinSection(state.pinnedThreadGroupList),
+                  ],
+                ),
               ),
             };
 
@@ -190,18 +192,18 @@ class _HomepagePageState extends State<HomepagePage> {
                         height: 32,
                         child: HeroUserAvatar(username: username, avatarUrl: avatarUrl, heroTag: username),
                       ),
-                      onPressed:
-                          () async => showHeroDialog(
-                            context,
-                            (context, _, __) => UserOperationDialog(
-                              username: username,
-                              avatarUrl: avatarUrl,
-                              heroTag: username,
-                              // Ok to use record.
-                              // ignore: avoid_positional_fields_in_records
-                              latestThreadUrl: state.loggedUserInfo?.relatedLinkPairList.lastOrNull?.$2,
-                            ),
-                          ),
+                      tooltip: context.t.homepage.showMoreUserOperationsTip,
+                      onPressed: () async => showHeroDialog(
+                        context,
+                        (context, _, _) => UserOperationDialog(
+                          username: username,
+                          avatarUrl: avatarUrl,
+                          heroTag: username,
+                          // Ok to use record.
+                          // ignore: avoid_positional_fields_in_records
+                          latestThreadUrl: state.loggedUserInfo?.relatedLinkPairList.lastOrNull?.$2,
+                        ),
+                      ),
                     ),
                     const NoticeButton(),
                     const CheckinButton(enableSnackBar: true),
